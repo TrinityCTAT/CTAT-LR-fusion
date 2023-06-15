@@ -17,7 +17,7 @@ my $usage = <<__EOUSAGE__;
 #
 # Required:
 #
-#  --gmap_gff3 <string>        gmap gff3 alignment output
+#  --align_gff3 <string>        gff3 alignment output
 #
 #  --annot_gtf <string>        transcript structures in gtf file format.
 #
@@ -32,11 +32,11 @@ __EOUSAGE__
 
 
 my $help_flag;
-my $gmap_gff3_file;
+my $align_gff3_file;
 my $annot_gtf_file;
 
 &GetOptions ( 'h' => \$help_flag,
-              'gmap_gff3=s' => \$gmap_gff3_file,
+              'align_gff3=s' => \$align_gff3_file,
               'annot_gtf=s' => \$annot_gtf_file,
               'min_per_id=f' => \$MIN_PER_ID,
               
@@ -47,7 +47,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($gmap_gff3_file && $annot_gtf_file) {
+unless ($align_gff3_file && $annot_gtf_file) {
     die $usage;
 }
 
@@ -129,7 +129,7 @@ main: {
     
     my %target_to_aligns;
     print STDERR "-loading alignment data\n";
-    open ($fh, $gmap_gff3_file) or die $!;
+    open ($fh, $align_gff3_file) or die $!;
     while (<$fh>) {
         if (/^\#/) { next; }
         unless (/\w/) { next; }

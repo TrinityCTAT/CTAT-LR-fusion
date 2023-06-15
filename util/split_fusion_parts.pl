@@ -8,7 +8,7 @@ use lib ("$FindBin::Bin/../PerlLib");
 use Fasta_reader;
 use Pipeliner;
 
-my $usage = "\n\n\tusage: $0 gmap.map.gff3.chims_described gmap.map.gff3.chims_described.fasta EXTEND_LENGTH genome_lib_dir min_per_id\n\n";
+my $usage = "\n\n\tusage: $0 mm2.map.gff3.chims_described mm2.map.gff3.chims_described.fasta EXTEND_LENGTH genome_lib_dir min_per_id\n\n";
 
 my $chims_described_file = $ARGV[0] or die $usage;
 my $chims_fasta_file = $ARGV[1] or die $usage;
@@ -18,9 +18,18 @@ my $min_per_id = $ARGV[4] or die $usage;
 
 ## configuration:
 my $GENOME = "$genome_lib_dir/ref_genome.fa";
-my $GMAP_DB_DIR = "$genome_lib_dir";
-my $GMAP_DB_NAME = "ref_genome.fa.gmap";
+my $MM2_DB_DIR = "$genome_lib_dir";
+my $MM2_DB_NAME = "ref_genome.fa.mm2";
+my $MM2_idx = "$MM2_DB_DIR/$MM2_DB_NAME/ref_genome.fa.mmi";
+my $REF_GTF = "$genome_lib_dir/ref_annot.gtf";
+my $MM2_splice_file = "$REF_GTF.mm2.splice.bed";
 
+## make cmd line args
+my $max_intron_length = 100000;
+my $CPU = 4;
+
+
+my $UTILDIR = $FindBin::Bin;
 
 main: {
 
@@ -29,11 +38,11 @@ main: {
     my %transcript_to_breakpoint = &parse_chimera_preds($chims_described_file);
 
     my $fasta_reader = new Fasta_reader($chims_fasta_file);
-    my %trans_seqs = $fasta_reader->retrieve_all_seqs_hash();
+    my %trans_seqs = $fasta_reader->retrieve_all_seqs_hash(%transcript_to_breakpoint);
 
     my $chim_frag_file = "$chims_fasta_file.split.fa";
     open (my $ofh, ">$chim_frag_file");
-
+    
     foreach my $trans (keys %transcript_to_breakpoint) {
         
         my $sequence = $trans_seqs{$trans} or die "Error, no sequence for trans: $trans";
@@ -53,13 +62,16 @@ main: {
     }
     close $ofh;
 
-    ## run GMAP, capture all top hits within reason.
-    my $gmap_output_file = "$chim_frag_file.gmap.gff3";
-    my $cmd = "gmap -D $GMAP_DB_DIR -d $GMAP_DB_NAME $chim_frag_file -f 3 -n 1 -t 4 --min-identity $min_per_id > $gmap_output_file";
-    
-    my $pipeliner = new Pipeliner(-verbose => 1);
-    $pipeliner->add_commands(new Command($cmd, "$gmap_output_file.ok"));
 
+    my $pipeliner = new Pipeliner(-verbose => 1);
+    ## run MM2, capture all top hits within reason.
+    my $mm2_output_prefix = "$chim_frag_file.mm2";
+    my $cmd = "minimap2 -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $chim_frag_file > $mm2_output_prefix.sam";
+    $pipeliner->add_commands(new Command($cmd, "mm2_chim_frags.ok"));
+    
+    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl  $mm2_output_prefix.sam >  $mm2_output_prefix.gff3";
+    $pipeliner->add_commands(new Command($cmd, "mm2_chim_frags_gff3.ok"));
+    
     $pipeliner->run();
     
     

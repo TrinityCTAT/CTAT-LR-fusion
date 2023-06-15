@@ -11,12 +11,12 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v0.5.1";
+my $VERSION = "v0.0.1";
 
 
 my $CPU = 4;
 my $MIN_TRANS_LEN_TRY_CHIM = 30;
-my $output_directory = "GMAP_Fusion";
+my $output_directory = "minimap2_fusion_outdir";
 my $MIN_NOVEL_J = 3;
 my $MIN_J = 1;
 my $MIN_SUM_JS = 1;
@@ -39,7 +39,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  Optional:
 #
-#  --CPU <int>                     :number threads for GMAP (default $CPU)
+#  --CPU <int>                     :number threads (default $CPU)
 #
 #  --left_fq <string>              :Illumina paired-end reads /1
 #
@@ -87,6 +87,12 @@ my $genome_lib_dir;
 my $SHOW_VERSION = 0;
 my $NO_ANNOTATION_FILTER = 0;
 
+my $PREP_REFERENCE = 0;
+my $PREP_REFERENCE_ONLY = 0;
+
+my $max_intron_length = 100000;
+
+
 &GetOptions ( 'help|h' => \$help_flag,
 
               ## Required
@@ -110,6 +116,10 @@ my $NO_ANNOTATION_FILTER = 0;
               
               'no_annot_filter' => \$NO_ANNOTATION_FILTER,
               'DEBUG' => \$DEBUG,
+              
+              '--prep_reference' => \$PREP_REFERENCE,
+              '--prep_reference_only' => \$PREP_REFERENCE_ONLY,
+
 
 );
 
@@ -120,7 +130,7 @@ if ($help_flag) {
 }
 
 if ($SHOW_VERSION) {
-    print "\n\nGMAP-fusion $VERSION\n\n";
+    print "\n\nminimap2-fusion $VERSION\n\n";
     exit(0);
 }
 
@@ -143,6 +153,39 @@ if ($right_fq ne "NA") {
 my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 
 
+my $UTILDIR = "$FindBin::RealBin/util";
+
+my $MM2_DB_DIR = $genome_lib_dir;
+my $MM2_DB_NAME = "ref_genome.fa.mm2";
+
+my $REF_GTF = "$genome_lib_dir/ref_annot.gtf";
+unless (-s $REF_GTF) {
+    die "Error, cannot locate reference annotation file: $REF_GTF";
+}
+
+my $MM2_splice_file = "$REF_GTF.mm2.splice.bed";
+
+if ($PREP_REFERENCE || $PREP_REFERENCE_ONLY) {
+    &prep_minimap2_reference($genome_lib_dir, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF);
+    if ($PREP_REFERENCE_ONLY) {
+        print STDERR "-option --prep_reference_only flag set. Stopping now.\n";
+        exit(0);
+    }
+}
+
+unless (-d "$MM2_DB_DIR/$MM2_DB_NAME") {
+    die "Error, cannot locate minimap2 database: $MM2_DB_DIR/$MM2_DB_NAME";
+}
+
+my $MM2_idx = "$MM2_DB_DIR/$MM2_DB_NAME/ref_genome.fa.mmi";
+unless (-e $MM2_idx) {
+    die "Error, cannot locate $MM2_idx";
+}
+
+unless (-e $MM2_splice_file) {
+    die "Error, cannot locate file: $MM2_splice_file";
+}
+
 
 if ($output_directory) {
     $output_directory = &ensure_full_path($output_directory);
@@ -153,23 +196,11 @@ if ($output_directory) {
     chdir $output_directory or die "Error, cannot cd to $output_directory";
 }
 
-my $intermediates_dir = &ensure_full_path("gmap_fusion_intermediates_dir");
+my $intermediates_dir = &ensure_full_path("fusion_intermediates_dir");
 unless (-d $intermediates_dir) {
     mkdir $intermediates_dir or die "Error, cannot mkdir $intermediates_dir";
 }
 
-
-my $UTILDIR = "$FindBin::RealBin/util";
-
-my $GMAP_DB_DIR = $genome_lib_dir;
-my $GMAP_DB_NAME = "ref_genome.fa.gmap";
-unless (-d "$GMAP_DB_DIR/$GMAP_DB_NAME") {
-    die "Error, cannot locate gmap database: $GMAP_DB_DIR/$GMAP_DB_NAME";
-}
-my $REF_GTF = "$genome_lib_dir/ref_annot.gtf";
-unless (-s $REF_GTF) {
-    die "Error, cannot locate reference annotation file: $REF_GTF";
-}
 
 
 main: {
@@ -178,9 +209,8 @@ main: {
                                   -checkpoint_dir => "$intermediates_dir/__checkpts",
         );
     
-
     # make fasta file from fastq
-
+    
     print STDERR "-transcripts filename before: [$transcripts_file]\n";
     # first, check if gzipped.
     if ($transcripts_file =~ /\.gz$/) {
@@ -201,20 +231,22 @@ main: {
     print STDERR "-transcripts filename after: [$transcripts_file]\n";
     
     ####################################################
-    # run GMAP to identify potential fusion transcripts
+    # run minimap2 to identify potential fusion transcripts
     ####################################################
 
-    my $gmap_output_file = "$intermediates_dir/gmap.map.gff3";
-    my $cmd = "gmap -D $GMAP_DB_DIR -d $GMAP_DB_NAME $transcripts_file -f 3 -n 0 -x $MIN_TRANS_LEN_TRY_CHIM -t $CPU  > $gmap_output_file ";
+    my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
+    my $cmd = "minimap2 -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     
-    $pipeliner->add_commands(new Command($cmd, "run_gmap.ok"));
-
+    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl  $mm2_intermediate_output_file_prefix.sam >  $mm2_intermediate_output_file_prefix.gff3";
+    $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
+    
     ###############################
     ## generate initial chim report
     ###############################
 
-    my $chims_described_outfile = "$gmap_output_file.chims_described";
-    $cmd = "$UTILDIR/gmap_genome_gff3_to_chim_summary.pl --gmap_gff3 $gmap_output_file --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
+    my $chims_described_outfile = "$mm2_intermediate_output_file_prefix.chims_described";
+    $cmd = "$UTILDIR/genome_gff3_to_chim_summary.pl --align_gff3 $mm2_intermediate_output_file_prefix.gff3 --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
     
     $pipeliner->add_commands(new Command($cmd, "chims_described.ok") );
     
@@ -222,12 +254,12 @@ main: {
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl $transcripts_file $chims_described_outfile > $chim_candidates_fasta";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
 
-    my $chim_split_gmap_gff3_file = "$chim_candidates_fasta.split.fa.gmap.gff3";
-    $cmd = "$UTILDIR/split_fusion_gmap_parts.pl $chims_described_outfile $chim_candidates_fasta $SPLIT_BREAKPOINT_EXTEND_LENGTH $genome_lib_dir $MIN_PER_ID";
-    $pipeliner->add_commands(new Command($cmd, "chim_split_gmap_gff3_file.ok"));
+    my $chim_split_gff3_file = "$chim_candidates_fasta.split.fa.mm2.gff3";
+    $cmd = "$UTILDIR/split_fusion_parts.pl $chims_described_outfile $chim_candidates_fasta $SPLIT_BREAKPOINT_EXTEND_LENGTH $genome_lib_dir $MIN_PER_ID";
+    $pipeliner->add_commands(new Command($cmd, "chim_split_gff3_file.ok"));
     
     my $split_align_stats = "$chim_candidates_fasta.split_align_stats";
-    $cmd = "$UTILDIR/compare_fusion_align_to_best_nonfusion_align.pl $chims_described_outfile $chim_split_gmap_gff3_file $SPLIT_BREAKPOINT_EXTEND_LENGTH > $split_align_stats";
+    $cmd = "$UTILDIR/compare_fusion_align_to_best_nonfusion_align.pl $chims_described_outfile $chim_split_gff3_file $SPLIT_BREAKPOINT_EXTEND_LENGTH > $split_align_stats";
     $pipeliner->add_commands(new Command($cmd, "split_align_stats.ok"));
     
     
@@ -252,7 +284,7 @@ main: {
 
     ## prelim report before filtering.
     my $preliminary_report_file = "$chims_described_outfile.preliminary";
-    $cmd = "$UTILDIR/write_GMAP_Fusion_annot_report.pl $chims_described_outfile $long_reads_only_flag > $preliminary_report_file";
+    $cmd = "$UTILDIR/write_Fusion_annot_report.pl $chims_described_outfile $long_reads_only_flag > $preliminary_report_file";
     
     $pipeliner->add_commands(new Command($cmd, "preliminary_report_file.ok"));
     
@@ -262,7 +294,7 @@ main: {
     ########################################################################
     
     my $chims_filt_outfile = "$chims_described_outfile.J${MIN_J}.JS${MIN_SUM_JS}.NJ${MIN_NOVEL_J}";
-    $cmd = "$UTILDIR/filter_gmap_chims_via_dist_from_exon_bounds.pl $preliminary_report_file $MIN_J $MIN_SUM_JS $MIN_NOVEL_J > $chims_filt_outfile";
+    $cmd = "$UTILDIR/filter_chims_via_dist_from_exon_bounds.pl $preliminary_report_file $MIN_J $MIN_SUM_JS $MIN_NOVEL_J > $chims_filt_outfile";
     
     $pipeliner->add_commands(new Command($cmd, "chims_filt_dist_from_exon_bounds.ok") );
 
@@ -309,3 +341,23 @@ main: {
     
 }
 
+####
+sub prep_minimap2_reference {
+    my ($genome_lib_dir, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
+
+    my $genome_fa = "$genome_lib_dir/ref_genome.fa";
+
+    my $mm2_prep_pipeliner = new Pipeliner(-verbose => 2,
+                                          -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
+
+    
+    my $cmd = "minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
+    $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_genome.ok"));
+
+    $cmd = "paftools.js gff2bed $REF_GTF > $MM2_splice_file";
+    $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_splices.ok"));
+
+    $mm2_prep_pipeliner->run();
+
+    return;
+}
