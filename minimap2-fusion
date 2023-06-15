@@ -1,0 +1,311 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Carp;
+use Getopt::Long qw(:config no_ignore_case bundling pass_through);
+use FindBin;
+use Cwd;
+use lib ("$FindBin::Bin/PerlLib");
+use Pipeliner;
+use Process_cmd;
+use File::Basename;
+
+my $VERSION = "v0.5.1";
+
+
+my $CPU = 4;
+my $MIN_TRANS_LEN_TRY_CHIM = 30;
+my $output_directory = "GMAP_Fusion";
+my $MIN_NOVEL_J = 3;
+my $MIN_J = 1;
+my $MIN_SUM_JS = 1;
+
+my $MIN_PER_ID = 90;
+
+my $SPLIT_BREAKPOINT_EXTEND_LENGTH = 25;
+my $MAX_FUZZY_OVERLAP = 12;
+
+
+my $usage = <<__EOUSAGE__;
+
+############################################################################################################
+#
+#  Required:
+#
+#  --transcripts|T <string>        :transcript fasta or fastq file
+#
+#  --genome_lib_dir <string>             directory containing genome lib (see http://FusionFilter.github.io for details)
+#
+#  Optional:
+#
+#  --CPU <int>                     :number threads for GMAP (default $CPU)
+#
+#  --left_fq <string>              :Illumina paired-end reads /1
+#
+#  --right_fq <string>             :Illumina paired-end reads /2
+#
+#  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID)
+#
+#  --min_chim_len|L <int>            :minimum length for a chimeric alignment (default: $MIN_TRANS_LEN_TRY_CHIM)
+#
+#  --output|o <string>             :output directory name (default: $output_directory)
+#
+#   
+#  --min_J <int>                 :minimum number of junction frags (default: $MIN_J)  
+#
+#  --min_sumJS <int>             :minimum sum (junction + spanning) frags (default: $MIN_SUM_JS)
+#
+#  --min_novel_junction_support <int>   :minimum number of junction reads required for novel (non-reference) exon-exon junction support.
+#                                        (default: $MIN_NOVEL_J)
+#  --split_breakpoint_extend_length <int>   :in assessing breakpoint quality, the length to extend each split sequence beyond
+#                                           the proposed breakpoint. (default: $SPLIT_BREAKPOINT_EXTEND_LENGTH)
+#
+#  --max_fuzzy_overlap <int>               :maximum allowed overlap of extended length from breakpoint (default: $MAX_FUZZY_OVERLAP)
+#
+#  --no_annot_filter               : disable filtering outputs based on fusion annotations.
+#
+#  --version                             report version ($VERSION)
+#
+##############################################################################################################
+
+
+
+__EOUSAGE__
+
+    ;
+
+
+my $help_flag;
+my $transcripts_file;
+my $left_fq = "NA";
+my $right_fq = "NA";
+
+my $DEBUG = 0;
+my $genome_lib_dir;
+
+my $SHOW_VERSION = 0;
+my $NO_ANNOTATION_FILTER = 0;
+
+&GetOptions ( 'help|h' => \$help_flag,
+
+              ## Required
+              'transcripts|T=s' => \$transcripts_file,
+              'genome_lib_dir=s' => \$genome_lib_dir,
+              
+              'left_fq=s' => \$left_fq,
+              'right_fq=s' => \$right_fq,
+
+              ## optional
+              'CPU=i' => \$CPU,
+              'min_chim_len|L=i' => \$MIN_TRANS_LEN_TRY_CHIM,
+              'output|o=s' => \$output_directory,
+              'min_J=i' => \$MIN_J,
+              'min_sumJS=i' => \$MIN_SUM_JS,
+              'min_per_id=i' => \$MIN_PER_ID,
+              'min_novel_junction_support=i' => \$MIN_NOVEL_J,
+              'split_breakpoint_extend_length=i' => \$SPLIT_BREAKPOINT_EXTEND_LENGTH,
+              'max_fuzzy_overlap=i' => \$MAX_FUZZY_OVERLAP,
+              'version' => \$SHOW_VERSION,
+              
+              'no_annot_filter' => \$NO_ANNOTATION_FILTER,
+              'DEBUG' => \$DEBUG,
+
+);
+
+
+
+if ($help_flag) {
+    die $usage;
+}
+
+if ($SHOW_VERSION) {
+    print "\n\nGMAP-fusion $VERSION\n\n";
+    exit(0);
+}
+
+
+unless ($transcripts_file && $genome_lib_dir) {
+    die $usage;
+}
+
+$genome_lib_dir = &ensure_full_path($genome_lib_dir);
+
+$transcripts_file = &ensure_full_path($transcripts_file);
+if ($left_fq ne "NA") {
+    $left_fq = &ensure_full_path($left_fq);
+}
+if ($right_fq ne "NA") {
+    $right_fq = &ensure_full_path($right_fq);
+}
+
+
+my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
+
+
+
+if ($output_directory) {
+    $output_directory = &ensure_full_path($output_directory);
+    
+    unless (-d $output_directory) {
+        mkdir $output_directory or die "Error, cannot mkdir $output_directory";
+    }
+    chdir $output_directory or die "Error, cannot cd to $output_directory";
+}
+
+my $intermediates_dir = &ensure_full_path("gmap_fusion_intermediates_dir");
+unless (-d $intermediates_dir) {
+    mkdir $intermediates_dir or die "Error, cannot mkdir $intermediates_dir";
+}
+
+
+my $UTILDIR = "$FindBin::RealBin/util";
+
+my $GMAP_DB_DIR = $genome_lib_dir;
+my $GMAP_DB_NAME = "ref_genome.fa.gmap";
+unless (-d "$GMAP_DB_DIR/$GMAP_DB_NAME") {
+    die "Error, cannot locate gmap database: $GMAP_DB_DIR/$GMAP_DB_NAME";
+}
+my $REF_GTF = "$genome_lib_dir/ref_annot.gtf";
+unless (-s $REF_GTF) {
+    die "Error, cannot locate reference annotation file: $REF_GTF";
+}
+
+
+main: {
+
+    my $pipeliner = new Pipeliner(-verbose => 2,
+                                  -checkpoint_dir => "$intermediates_dir/__checkpts",
+        );
+    
+
+    # make fasta file from fastq
+
+    print STDERR "-transcripts filename before: [$transcripts_file]\n";
+    # first, check if gzipped.
+    if ($transcripts_file =~ /\.gz$/) {
+        my $uncompressed_transcripts_file = basename($transcripts_file);
+        $uncompressed_transcripts_file =~ s/\.gz$//;
+        my $cmd = "gunzip -c $transcripts_file > $uncompressed_transcripts_file";
+        $pipeliner->add_commands(new Command($cmd, "gunzip_transcripts.ok"));
+        $transcripts_file = "$uncompressed_transcripts_file";
+        
+        if ($uncompressed_transcripts_file =~ /(fastq|fq)$/i) {
+            # convert from fastq to fasta
+            $cmd = "seqtk seq -a $uncompressed_transcripts_file > $uncompressed_transcripts_file.fasta";
+            $pipeliner->add_commands(new Command($cmd, "fastq_to_fasta_seqtk.ok"));
+
+            $transcripts_file = "$uncompressed_transcripts_file.fasta";
+        }
+    }
+    print STDERR "-transcripts filename after: [$transcripts_file]\n";
+    
+    ####################################################
+    # run GMAP to identify potential fusion transcripts
+    ####################################################
+
+    my $gmap_output_file = "$intermediates_dir/gmap.map.gff3";
+    my $cmd = "gmap -D $GMAP_DB_DIR -d $GMAP_DB_NAME $transcripts_file -f 3 -n 0 -x $MIN_TRANS_LEN_TRY_CHIM -t $CPU  > $gmap_output_file ";
+    
+    $pipeliner->add_commands(new Command($cmd, "run_gmap.ok"));
+
+    ###############################
+    ## generate initial chim report
+    ###############################
+
+    my $chims_described_outfile = "$gmap_output_file.chims_described";
+    $cmd = "$UTILDIR/gmap_genome_gff3_to_chim_summary.pl --gmap_gff3 $gmap_output_file --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
+    
+    $pipeliner->add_commands(new Command($cmd, "chims_described.ok") );
+    
+    my $chim_candidates_fasta = "$chims_described_outfile.fasta";
+    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl $transcripts_file $chims_described_outfile > $chim_candidates_fasta";
+    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
+
+    my $chim_split_gmap_gff3_file = "$chim_candidates_fasta.split.fa.gmap.gff3";
+    $cmd = "$UTILDIR/split_fusion_gmap_parts.pl $chims_described_outfile $chim_candidates_fasta $SPLIT_BREAKPOINT_EXTEND_LENGTH $genome_lib_dir $MIN_PER_ID";
+    $pipeliner->add_commands(new Command($cmd, "chim_split_gmap_gff3_file.ok"));
+    
+    my $split_align_stats = "$chim_candidates_fasta.split_align_stats";
+    $cmd = "$UTILDIR/compare_fusion_align_to_best_nonfusion_align.pl $chims_described_outfile $chim_split_gmap_gff3_file $SPLIT_BREAKPOINT_EXTEND_LENGTH > $split_align_stats";
+    $pipeliner->add_commands(new Command($cmd, "split_align_stats.ok"));
+    
+    
+    my $revised_chims_described_file = "$chims_described_outfile.revised";
+    $cmd = "$UTILDIR/revise_chim_candidate_list_via_split_align_reassessment.pl $split_align_stats $MAX_FUZZY_OVERLAP > $revised_chims_described_file";
+    $pipeliner->add_commands(new Command($cmd, "revised_chims_described_file.ok"));
+    
+    $chims_described_outfile = $revised_chims_described_file; # replacement
+
+        
+    #################################
+    ## determine fusion read support
+    ################################
+    
+    my $chims_described_plus_read_support = "$chims_described_outfile.w_read_support";
+    
+    $cmd = "$UTILDIR/estimate_fusion_read_support.pl $transcripts_file $chims_described_outfile $left_fq $right_fq > $chims_described_plus_read_support";
+    $pipeliner->add_commands(new Command($cmd, "chims_described_plus_read_support.ok"));
+    
+    $chims_described_outfile = $chims_described_plus_read_support; #replacement
+    
+
+    ## prelim report before filtering.
+    my $preliminary_report_file = "$chims_described_outfile.preliminary";
+    $cmd = "$UTILDIR/write_GMAP_Fusion_annot_report.pl $chims_described_outfile $long_reads_only_flag > $preliminary_report_file";
+    
+    $pipeliner->add_commands(new Command($cmd, "preliminary_report_file.ok"));
+    
+
+    ########################################################################
+    ## filter the chimeras based on scores and distance from exon junctions:
+    ########################################################################
+    
+    my $chims_filt_outfile = "$chims_described_outfile.J${MIN_J}.JS${MIN_SUM_JS}.NJ${MIN_NOVEL_J}";
+    $cmd = "$UTILDIR/filter_gmap_chims_via_dist_from_exon_bounds.pl $preliminary_report_file $MIN_J $MIN_SUM_JS $MIN_NOVEL_J > $chims_filt_outfile";
+    
+    $pipeliner->add_commands(new Command($cmd, "chims_filt_dist_from_exon_bounds.ok") );
+
+    ###############################################
+    ## FusionFilter
+    ###############################################
+
+    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $chims_filt_outfile --out_prefix $preliminary_report_file --genome_lib_dir $genome_lib_dir";
+    $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
+
+
+
+    #################################
+    ## Fusion Annotator
+    #################################
+
+    $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $preliminary_report_file.post_blast_and_promiscuity_filter > $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot";
+    $pipeliner->add_commands(new Command($cmd, "annotate_fusions.ok"));
+    
+
+    if ($NO_ANNOTATION_FILTER) {
+        
+        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot $output_directory/GMAP-fusion.fusion_predictions.tsv";
+        $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
+
+    }
+    else {
+        
+        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot --genome_lib_dir $genome_lib_dir";
+        $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
+
+
+        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/GMAP-fusion.fusion_predictions.tsv";
+        $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
+
+    }
+    
+    $pipeliner->run();
+    
+
+    print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/GMAP-fusion.fusion_predictions.tsv\n\n\n";
+    
+    exit(0); ### stopping here now.
+    
+}
+

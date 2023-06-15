@@ -1,0 +1,3 @@
+#FusionName	JunctionReadCount	SpanningFragCount	trans_acc	trans_brkpt	LeftGene	LeftBreakpoint	RightGene	RightBreakpoint	SpliceType	left_brkpt_anchorseq	left_brkpt_entropy	right_brkpt_anchorseq	right_brkpt_entropy	filtered
+MED1--STXBP4	1	0	Locus_38_Transcript_1/1_Confidence_1.000_Length_212	95-94	MED1	chr17:39451038	STXBP4	chr17:55141310	ONLY_REF_SPLICE	CATAAGGTAAAC	1.79	TCGGTTTCCCCC	1.46	Fails to meet min entropy requirement at junction anchor region
+RPS6KB1--SNF8	1	0	Locus_20_Transcript_1/1_Confidence_1.000_Length_350	156-157	RPS6KB1	chr17:59893325	SNF8	chr17:48943975	ONLY_REF_SPLICE	CTGGAGGAGGGG	1.42	CAAGTATAAGGA	1.73	Fails to meet min entropy requirement at junction anchor region

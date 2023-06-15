@@ -1,0 +1,6 @@
+[submodule "FusionFilter"]
+	path = FusionFilter
+	url = git@github.com:FusionFilter/FusionFilter.git
+[submodule "FusionAnnotator"]
+	path = FusionAnnotator
+	url = git@github.com:FusionAnnotator/FusionAnnotator.git
