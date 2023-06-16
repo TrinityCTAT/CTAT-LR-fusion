@@ -317,7 +317,7 @@ main: {
 
     if ($NO_ANNOTATION_FILTER) {
         
-        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot $output_directory/GMAP-fusion.fusion_predictions.tsv";
+        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
 
     }
@@ -327,7 +327,7 @@ main: {
         $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
 
 
-        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/GMAP-fusion.fusion_predictions.tsv";
+        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
     }
@@ -335,7 +335,7 @@ main: {
     $pipeliner->run();
     
 
-    print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/GMAP-fusion.fusion_predictions.tsv\n\n\n";
+    print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/minimap2-fusion.fusion_predictions.tsv\n\n\n";
     
     exit(0); ### stopping here now.
     
