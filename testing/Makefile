@@ -10,7 +10,7 @@ test_excl_shortreads:
 
 
 test_longOnly_fqgz:
-	../minimap2-fusion -T transcripts.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.excl_short.fqgz --min_J 1  --min_sumJS 1
+	../minimap2-fusion -T transcripts.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.excl_short.fqgz --min_J 1  --min_sumJS 1 --min_novel_junction_support 1
 
 clean:
 	rm -rf ./mm2_fusion_outdir.incl_short ./mm2_fusion_outdir.excl_short*
