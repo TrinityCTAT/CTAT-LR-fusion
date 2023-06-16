@@ -91,15 +91,26 @@ sub convert_spans_to_align_summary {
 
     my %trans_id_to_summary_info;
 
+    my %problem_aligns;
+    
     foreach my $span (@spans) {
         
         my $target = $span->{target};
 
         if (exists $trans_id_to_summary_info{$target}) {
-            die "Error, $target already processed ... should only have one alignment per target";
+            print STDERR "Warning, $target already processed ... should only have one alignment per target";
+            $problem_aligns{$target} = 1;
         }
-        $trans_id_to_summary_info{$target} = $span;
+        else {
+            $trans_id_to_summary_info{$target} = $span;
+        }
     }
 
+    if (%problem_aligns) {
+        foreach my $problem_target (keys %problem_aligns) {
+            delete $trans_id_to_summary_info{$problem_target};
+        }
+    }
+    
     return(%trans_id_to_summary_info);
 }

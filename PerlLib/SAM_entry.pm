@@ -459,6 +459,13 @@ sub set_mate_unmapped {
 	return($self->_set_bit_val(0x0008, $bit_val));
 }
 
+
+sub is_primary {
+    my ($self) = shift;
+    return(! $self->_get_bit_val(0x0100));
+}
+
+
 sub is_duplicate {
     my ($self) = shift;
     

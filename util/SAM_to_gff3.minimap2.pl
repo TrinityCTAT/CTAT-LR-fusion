@@ -25,6 +25,10 @@ main: {
 	while ($sam_reader->has_next()) {
 
 		my $sam_entry = $sam_reader->get_next();
+
+        unless ($sam_entry->is_primary()) {
+            next;
+        }
         
 		if ($sam_entry->is_query_unmapped()) {
 			next;
