@@ -29,6 +29,10 @@ workflow minimap2_fusion_wf {
           transcripts=transcripts,
           genome_lib_tar=genome_lib_tar,
           min_per_id=min_per_id,
+          min_J=min_J,
+          min_sumJS=min_sumJS,    
+          min_novel_junction_support=min_novel_junction_support,
+
           docker=docker,
           cpu=cpu,
           memory=memory,
