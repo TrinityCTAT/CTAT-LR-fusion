@@ -266,7 +266,7 @@ main: {
     $pipeliner->add_commands(new Command($cmd, "FI_listing.ok"));
 
     # create FI contigs.
-    my $cmd = "$FI_dir/util/fusion_pair_to_mini_genome_join.pl "
+    $cmd = "$FI_DIR/util/fusion_pair_to_mini_genome_join.pl "
         . " --fusions $FI_listing "
         . " --gtf $REF_GTF"
         . " --genome_fa $genome_lib_dir/ref_genome.fa"
@@ -281,7 +281,7 @@ main: {
     my $FI_splice_bed = "LR-FI_targets.gtf.mm2.splice.bed";
     my $FI_mm2 = "LR-FI_targets.fa.mm2";
         
-    &prep_minimpa2_reference("LR-FI_targets.fa", ".", $FI_mm2, $FI_splice_bed, "LR-FI_targets.gtf");
+    &prep_minimap2_reference("LR-FI_targets.fa", ".", $FI_mm2, $FI_splice_bed, "LR-FI_targets.gtf");
     
     
     ## run mm2 using the chimeric candidates:
@@ -291,9 +291,31 @@ main: {
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl LR-FI.mm2.sam > LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
 
-    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 >  LR-FI.mm2.fusion_transcripts.gff3";
+    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 LR-FI.mm2.fusion_transcripts >  LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
     
+
+    ###############################################
+    ## Add regular FI for short reads if available.
+    
+    if ($left_fq ne "NA") {
+        $cmd = "$FI_DIR/FusionInspector --fusions $FI_listing --genome_lib_dir $genome_lib_dir "
+            . " --FI_contigs_fa LR-FI_targets.fa --FI_contigs_gtf LR-FI_targets.gtf "
+            . " --left_fq $left_fq ";
+        if ($right_fq ne "NA") {
+            $cmd .= " --right_fq $right_fq ";
+        }
+    
+        $pipeliner->add_commands(new Command($cmd, "FI_short_reads.ok"));
+    }
+    
+    $pipeliner->run();
+
+    exit(0);
+    
+=ladeda
+    
+
     ###############################################
     ## FusionFilter
     ###############################################
@@ -334,6 +356,8 @@ main: {
     print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/minimap2-fusion.fusion_predictions.tsv\n\n\n";
     
     exit(0); ### stopping here now.
+=cut
+
     
 }
 
