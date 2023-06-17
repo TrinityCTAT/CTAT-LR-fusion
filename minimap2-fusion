@@ -91,6 +91,7 @@ my $PREP_REFERENCE = 0;
 my $PREP_REFERENCE_ONLY = 0;
 
 my $max_intron_length = 100000;
+my $shrink_intron_max_length = 1000;
 
 
 &GetOptions ( 'help|h' => \$help_flag,
@@ -117,9 +118,11 @@ my $max_intron_length = 100000;
               'no_annot_filter' => \$NO_ANNOTATION_FILTER,
               'DEBUG' => \$DEBUG,
               
-              '--prep_reference' => \$PREP_REFERENCE,
-              '--prep_reference_only' => \$PREP_REFERENCE_ONLY,
+              'prep_reference' => \$PREP_REFERENCE,
+              'prep_reference_only' => \$PREP_REFERENCE_ONLY,
 
+              'shrink_intron_max_length=i' => \$shrink_intron_max_length,
+              
 
 );
 
@@ -154,6 +157,8 @@ my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 
 
 my $UTILDIR = "$FindBin::RealBin/util";
+my $FI_DIR = "$FindBin::RealBin/FusionInspector";
+
 
 my $MM2_DB_DIR = $genome_lib_dir;
 my $MM2_DB_NAME = "ref_genome.fa.mm2";
@@ -164,9 +169,10 @@ unless (-s $REF_GTF) {
 }
 
 my $MM2_splice_file = "$REF_GTF.mm2.splice.bed";
+my $genome_fa = "$genome_lib_dir/ref_genome.fa";
 
 if ($PREP_REFERENCE || $PREP_REFERENCE_ONLY) {
-    &prep_minimap2_reference($genome_lib_dir, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF);
+    &prep_minimap2_reference($genome_fa, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF);
     if ($PREP_REFERENCE_ONLY) {
         print STDERR "-option --prep_reference_only flag set. Stopping now.\n";
         exit(0);
@@ -260,15 +266,34 @@ main: {
     $pipeliner->add_commands(new Command($cmd, "FI_listing.ok"));
 
     # create FI contigs.
+    my $cmd = "$FI_dir/util/fusion_pair_to_mini_genome_join.pl "
+        . " --fusions $FI_listing "
+        . " --gtf $REF_GTF"
+        . " --genome_fa $genome_lib_dir/ref_genome.fa"
+        . " --out_prefix LR-FI_targets"
+        . " --shrink_introns --max_intron_length $shrink_intron_max_length ";
     
+    $pipeliner->add_commands(new Command($cmd, "FI_contigs.ok"));
 
+    $pipeliner->run();
 
+    ## prep for mm2
+    my $FI_splice_bed = "LR-FI_targets.gtf.mm2.splice.bed";
+    my $FI_mm2 = "LR-FI_targets.fa.mm2";
+        
+    &prep_minimpa2_reference("LR-FI_targets.fa", ".", $FI_mm2, $FI_splice_bed, "LR-FI_targets.gtf");
+    
+    
+    ## run mm2 using the chimeric candidates:
+    $cmd = "minimap2 -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2  $chim_candidates_fasta > LR-FI.mm2.sam";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
+    
+    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl LR-FI.mm2.sam > LR-FI.mm2.gff3";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
 
-
-
-
-
-
+    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 >  LR-FI.mm2.fusion_transcripts.gff3";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
+    
     ###############################################
     ## FusionFilter
     ###############################################
@@ -314,21 +339,27 @@ main: {
 
 ####
 sub prep_minimap2_reference {
-    my ($genome_lib_dir, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
-
-    my $genome_fa = "$genome_lib_dir/ref_genome.fa";
-
-    my $mm2_prep_pipeliner = new Pipeliner(-verbose => 2,
-                                          -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
+    my ($genome_fa, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
 
     
-    my $cmd = "minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
-    $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_genome.ok"));
-
-    $cmd = "paftools.js gff2bed $REF_GTF > $MM2_splice_file";
-    $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_splices.ok"));
-
-    $mm2_prep_pipeliner->run();
+    my $mm2_build_ok_checkpoint = "$MM2_DB_NAME.build.ok";
+    if (! -e $mm2_build_ok_checkpoint) {
+        
+        my $mm2_prep_pipeliner = new Pipeliner(-verbose => 2,
+                                               -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
+        
+        
+        my $cmd = "minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
+        $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_genome.ok"));
+        
+        $cmd = "paftools.js gff2bed $REF_GTF > $MM2_splice_file";
+        $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_splices.ok"));
+        
+        $mm2_prep_pipeliner->run();
+    
+        system("touch $mm2_build_ok_checkpoint");
+    }
+    
 
     return;
 }
