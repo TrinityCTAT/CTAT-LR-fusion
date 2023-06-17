@@ -7,6 +7,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use Fasta_reader;
 use Pipeliner;
+use Data::Dumper;
 
 my $usage = "\n\n\tusage: $0 mm2.map.gff3.chims_described mm2.map.gff3.chims_described.fasta EXTEND_LENGTH genome_lib_dir min_per_id\n\n";
 
@@ -46,11 +47,20 @@ main: {
     foreach my $trans (keys %transcript_to_breakpoint) {
         
         my $sequence = $trans_seqs{$trans} or die "Error, no sequence for trans: $trans";
-        
+        my $seqlen = length($sequence);
+
         my $breakpoint_range = $transcript_to_breakpoint{$trans} or die "Error, no breakpoint range for $trans";
+
+        #print STDERR "-trans: $trans (seqlen: $seqlen)\n";
+        #print STDERR Dumper($breakpoint_range);
         
         my ($brk_left, $brk_right) = sort {$a<=>$b} split(/-/, $breakpoint_range);
 
+        if ($brk_right > $seqlen) {
+            print STDERR "-error: sequence length for $trans = $seqlen, which < breakpoint $brk_right. Check your inputs for non-unique accessions. Skipping $trans.\n";
+            next;
+        }
+        
         my $seq_range_left = substr($sequence, 0, $brk_left + $EXTEND) or die "Error, no substr for range left";
         my $seq_range_right = substr($sequence, $brk_right - $EXTEND) or die "Error, no substr for range right";
 
