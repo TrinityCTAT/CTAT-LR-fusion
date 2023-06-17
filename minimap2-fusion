@@ -254,7 +254,12 @@ main: {
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl $transcripts_file $chims_described_outfile > $chim_candidates_fasta";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
 
-    
+    # create FI list
+    my $FI_listing = "$chims_described_outfile.FI_list";
+    $cmd = "$UTILDIR/prep_FI_fusion_list.py $chims_described_outfile > $FI_listing";
+    $pipeliner->add_commands(new Command($cmd, "FI_listing.ok"));
+
+    # create FI contigs.
     
 
 
