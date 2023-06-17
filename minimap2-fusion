@@ -254,49 +254,15 @@ main: {
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl $transcripts_file $chims_described_outfile > $chim_candidates_fasta";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
 
-    my $chim_split_gff3_file = "$chim_candidates_fasta.split.fa.mm2.gff3";
-    $cmd = "$UTILDIR/split_fusion_parts.pl $chims_described_outfile $chim_candidates_fasta $SPLIT_BREAKPOINT_EXTEND_LENGTH $genome_lib_dir $MIN_PER_ID";
-    $pipeliner->add_commands(new Command($cmd, "chim_split_gff3_file.ok"));
     
-    my $split_align_stats = "$chim_candidates_fasta.split_align_stats";
-    $cmd = "$UTILDIR/compare_fusion_align_to_best_nonfusion_align.pl $chims_described_outfile $chim_split_gff3_file $SPLIT_BREAKPOINT_EXTEND_LENGTH > $split_align_stats";
-    $pipeliner->add_commands(new Command($cmd, "split_align_stats.ok"));
-    
-    
-    my $revised_chims_described_file = "$chims_described_outfile.revised";
-    $cmd = "$UTILDIR/revise_chim_candidate_list_via_split_align_reassessment.pl $split_align_stats $MAX_FUZZY_OVERLAP > $revised_chims_described_file";
-    $pipeliner->add_commands(new Command($cmd, "revised_chims_described_file.ok"));
-    
-    $chims_described_outfile = $revised_chims_described_file; # replacement
-
-        
-    #################################
-    ## determine fusion read support
-    ################################
-    
-    my $chims_described_plus_read_support = "$chims_described_outfile.w_read_support";
-    
-    $cmd = "$UTILDIR/estimate_fusion_read_support.pl $transcripts_file $chims_described_outfile $left_fq $right_fq > $chims_described_plus_read_support";
-    $pipeliner->add_commands(new Command($cmd, "chims_described_plus_read_support.ok"));
-    
-    $chims_described_outfile = $chims_described_plus_read_support; #replacement
     
 
-    ## prelim report before filtering.
-    my $preliminary_report_file = "$chims_described_outfile.preliminary";
-    $cmd = "$UTILDIR/write_Fusion_annot_report.pl $chims_described_outfile $long_reads_only_flag > $preliminary_report_file";
-    
-    $pipeliner->add_commands(new Command($cmd, "preliminary_report_file.ok"));
-    
 
-    ########################################################################
-    ## filter the chimeras based on scores and distance from exon junctions:
-    ########################################################################
-    
-    my $chims_filt_outfile = "$chims_described_outfile.J${MIN_J}.JS${MIN_SUM_JS}.NJ${MIN_NOVEL_J}";
-    $cmd = "$UTILDIR/filter_chims_via_dist_from_exon_bounds.pl $preliminary_report_file $MIN_J $MIN_SUM_JS $MIN_NOVEL_J > $chims_filt_outfile";
-    
-    $pipeliner->add_commands(new Command($cmd, "chims_filt_dist_from_exon_bounds.ok") );
+
+
+
+
+
 
     ###############################################
     ## FusionFilter
