@@ -4,3 +4,6 @@
 [submodule "FusionAnnotator"]
 	path = FusionAnnotator
 	url = https://github.com/FusionAnnotator/FusionAnnotator.git
+[submodule "FusionInspector"]
+	path = FusionInspector
+	url = https://github.com/FusionInspector/FusionInspector.git

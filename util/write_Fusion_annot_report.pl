@@ -12,6 +12,8 @@ my $usage = "usage: $0 gmap.map.gff3.chims_described.w_read_support [LONG_READS_
 my $chim_file = $ARGV[0] or die $usage;
 my $long_reads_only_flag = $ARGV[1] || 0;
 
+my $MAYBE_REF_SPLICE_FUZZ_DIST = 10;
+
 
 =inputfmt
 
@@ -73,9 +75,15 @@ main: {
         
         my $trans_brkpt = join("-", $trans_brkptA, $trans_brkptB);
         
-        my ($junction_type) = ($deltaA != 0 || $deltaB != 0) ? "INCL_NON_REF_SPLICE" : "ONLY_REF_SPLICE";
-    
-
+        #my ($junction_type) = ($deltaA != 0 || $deltaB != 0) ? "INCL_NON_REF_SPLICE" : "ONLY_REF_SPLICE";
+        my $junction_type = "INCL_NON_REF_SPLICE";
+        if ($deltaA == 0 && $deltaB == 0) {
+            $junction_type = "ONLY_REF_SPLICE";
+        }
+        elsif ($deltaA <= $MAYBE_REF_SPLICE_FUZZ_DIST && $deltaB <=  $MAYBE_REF_SPLICE_FUZZ_DIST) {
+            $junction_type = "MAYBE_ONLY_REF_SPLICE";
+        }
+        
         my $row = { "#FusionName" => $fusion_name,
                     'JunctionReadCount' => $J,
                     'SpanningFragCount' => $S,
@@ -133,3 +141,5 @@ main: {
     exit(0);
     
 }
+
+
