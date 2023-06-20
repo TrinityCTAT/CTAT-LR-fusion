@@ -262,7 +262,7 @@ sub report_LR_fusions {
     @fusion_structs = reverse sort {$a->{num_LR} <=> $b->{num_LR}} @fusion_structs;
 
     
-    print $LR_breakpoint_summary_ofh join("\t", "fusion_name", "num_LR", 
+    print $LR_breakpoint_summary_ofh join("\t", "#FusionName", "num_LR", 
                "LeftLocalBreakpoint", "RightLocalBreakpoint",
                "LeftBreakpoint", "RightBreakpoint", "SpliceType",
                "LR_accessions") . "\n";

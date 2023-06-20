@@ -293,8 +293,8 @@ main: {
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 LR-FI.mm2.fusion_transcripts >  LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
   
-    my $fusions_filename = "LR-FI.mm2.fusion_transcripts";
-
+    my $fusions_filename = "LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv";
+    
     ###############################################
     ## Add regular FI for short reads if available.
     

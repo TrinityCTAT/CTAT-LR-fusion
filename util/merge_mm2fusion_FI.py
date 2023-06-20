@@ -28,11 +28,10 @@ def main():
     logger.info("-parsing {}".format(FI_fusions_filename))
     FI_df = pd.read_csv(FI_fusions_filename, sep="\t")
 
-    FI_df = FI_df.rename(columns={'#FusionName' : 'fusion_name'})
 
     logger.info("-merging data frames.")
     merged_df = pd.merge(mm2_df, FI_df,
-                         on=['fusion_name', 'LeftLocalBreakpoint', 'RightLocalBreakpoint', 'LeftBreakpoint', 'RightBreakpoint'],
+                         on=['#FusionName', 'LeftLocalBreakpoint', 'RightLocalBreakpoint', 'LeftBreakpoint', 'RightBreakpoint'],
                          how='outer')
     
 
