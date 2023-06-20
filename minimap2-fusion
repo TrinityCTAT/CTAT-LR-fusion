@@ -65,6 +65,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  --no_annot_filter               : disable filtering outputs based on fusion annotations.
 #
+#  --prep_reference                : prepares mininmap2 genome index
+#  --prep_reference_only           : only prepares genome index and then stops.
+#
 #  --version                             report version ($VERSION)
 #
 ##############################################################################################################
@@ -289,7 +292,8 @@ main: {
 
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 LR-FI.mm2.fusion_transcripts >  LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
-    
+  
+    my $fusions_filename = "LR-FI.mm2.fusion_transcripts";
 
     ###############################################
     ## Add regular FI for short reads if available.
@@ -303,23 +307,25 @@ main: {
         }
     
         $pipeliner->add_commands(new Command($cmd, "FI_short_reads.ok"));
-    }
     
-    $pipeliner->run();
+        $fusions_filename = "mm2_and_FI_fusions_merged.tsv";
 
-    exit(0);
-    
-=ladeda
+        # merge FI with the mm2 fusions
+        $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $fusions_filename";
+        $pipeliner->add_commands(new Command($cmd, "merge_mm2_FI.ok"));
+        
+    }
     
 
     ###############################################
     ## FusionFilter
     ###############################################
-
-    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $chims_filt_outfile --out_prefix $preliminary_report_file --genome_lib_dir $genome_lib_dir";
+    
+    my $preliminary_report_file = $fusions_filename;
+    
+    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $preliminary_report_file --genome_lib_dir $genome_lib_dir";
     $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
-
-
+        
 
     #################################
     ## Fusion Annotator
@@ -352,7 +358,7 @@ main: {
     print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/minimap2-fusion.fusion_predictions.tsv\n\n\n";
     
     exit(0); ### stopping here now.
-=cut
+
 
     
 }
@@ -362,8 +368,11 @@ sub prep_minimap2_reference {
     my ($genome_fa, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
 
     
-    my $mm2_build_ok_checkpoint = "$MM2_DB_NAME.build.ok";
-    if (! -e $mm2_build_ok_checkpoint) {
+    my $mm2_build_ok_checkpoint = "$MM2_DB_DIR/$MM2_DB_NAME.build.ok";
+    if (-e $mm2_build_ok_checkpoint) {
+        print STDERR "-checkpoint exists: $mm2_build_ok_checkpoint, so skipping.\n";
+    }
+    else {
         
         my $mm2_prep_pipeliner = new Pipeliner(-verbose => 2,
                                                -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
