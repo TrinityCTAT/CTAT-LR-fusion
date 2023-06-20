@@ -152,10 +152,8 @@ RUN git clone https://github.com/TrinityCTAT/minimap2-fusion.git  && \
 
 RUN mv $SRC/minimap2-fusion/* $BIN/
 
-
-ARG CACHEBUST=1
-
 # K8
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
     
+RUN ln -s /usr/bin/python3 /usr/bin/python
