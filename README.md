@@ -1,2 +1,4 @@
 # minimap2-fusion
-adaptation of gmap-fusion to leverage minimap2
+
+Find fusion transcripts using minimap2 and FusionInspector for long (and optionally short) RNA-seq reads.
+
