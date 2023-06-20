@@ -161,7 +161,7 @@ my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 
 my $UTILDIR = "$FindBin::RealBin/util";
 my $FI_DIR = "$FindBin::RealBin/FusionInspector";
-
+my $CTAT_MINIMAP2_DIR = "$FindBin::RealBin/ctat-minimap2";
 
 my $MM2_DB_DIR = $genome_lib_dir;
 my $MM2_DB_NAME = "ref_genome.fa.mm2";
@@ -240,7 +240,7 @@ main: {
     ####################################################
 
     my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
-    my $cmd = "minimap2 -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only --only_chimeric -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
     $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl  $mm2_intermediate_output_file_prefix.sam >  $mm2_intermediate_output_file_prefix.gff3";
@@ -284,7 +284,7 @@ main: {
     
     
     ## run mm2 using the chimeric candidates:
-    $cmd = "minimap2 -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2  $chim_candidates_fasta > LR-FI.mm2.sam";
+    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2  $chim_candidates_fasta > LR-FI.mm2.sam";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
     
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl LR-FI.mm2.sam > LR-FI.mm2.gff3";
@@ -378,10 +378,10 @@ sub prep_minimap2_reference {
                                                -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
         
         
-        my $cmd = "minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
+        my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
         $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_genome.ok"));
         
-        $cmd = "paftools.js gff2bed $REF_GTF > $MM2_splice_file";
+        $cmd = "$CTAT_MINIMAP2_DIR/misc/paftools.ctat.js gff2bed $REF_GTF > $MM2_splice_file";
         $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_splices.ok"));
         
         $mm2_prep_pipeliner->run();
