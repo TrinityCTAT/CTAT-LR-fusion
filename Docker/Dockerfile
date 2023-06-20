@@ -140,8 +140,15 @@ RUN apt-get install -y git && apt-get clean
 WORKDIR $SRC
 
 
+# K8
+RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
+    cp k8-0.2.4/k8-`uname -s` $BIN/k8
+    
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+
 ENV minimap2_fusion_version 0.1.0
-ENV MM2_FUSION_CO 1634687a259df2ebba8de669bba8f3b1d02d7fc4
+ENV MM2_FUSION_CO a6792d67b53fddbe0a399f3d2592b9e31f729ead
 
 RUN git clone https://github.com/TrinityCTAT/minimap2-fusion.git  && \
 	cd minimap2-fusion && \
@@ -152,8 +159,9 @@ RUN git clone https://github.com/TrinityCTAT/minimap2-fusion.git  && \
 
 RUN mv $SRC/minimap2-fusion/* $BIN/
 
-# K8
-RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
-    cp k8-0.2.4/k8-`uname -s` $BIN/k8
-    
-RUN ln -s /usr/bin/python3 /usr/bin/python
+WORKDIR $SRC
+RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
+    tar xvf htslib-1.17.tar.bz2 && \
+    cd htslib-1.17 && \
+    ./configure && make && make install
+
