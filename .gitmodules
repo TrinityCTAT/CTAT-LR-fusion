@@ -7,3 +7,6 @@
 [submodule "FusionInspector"]
 	path = FusionInspector
 	url = https://github.com/FusionInspector/FusionInspector.git
+[submodule "ctat-minimap2"]
+	path = ctat-minimap2
+	url = https://github.com/TrinityCTAT/ctat-minimap2.git
