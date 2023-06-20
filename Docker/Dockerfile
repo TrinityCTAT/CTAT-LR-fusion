@@ -112,27 +112,42 @@ RUN git clone https://github.com/lh3/seqtk.git && \
 ########
 ## Minimap2
 
-WORKDIR $SRC
-RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
-    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
+#WORKDIR $SRC
+#RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
+#    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
+
+
+ARG CACHEBUST=1
+
+
+##############
+## STAR
+
+ENV STAR_VERSION=2.7.8a
+RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
+    wget -P $SRC $STAR_URL &&\
+    tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
+    mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
+
+
+
 
 #######
 ## minimap2-Fusion
 
 RUN apt-get install -y git && apt-get clean
 
-ARG CACHEBUST=1
-
 WORKDIR $SRC
 
 
-ENV minimap2_fusion_version 0.0.1
-ENV MM2_FUSION_CO a1609ed9c1dbfe13fcd54b5f352d82ee09db4f27
+ENV minimap2_fusion_version 0.1.0
+ENV MM2_FUSION_CO 1634687a259df2ebba8de669bba8f3b1d02d7fc4
 
 RUN git clone https://github.com/TrinityCTAT/minimap2-fusion.git  && \
 	cd minimap2-fusion && \
     git checkout ${MM2_FUSION_CO} && \
-    git submodule init && git submodule update
+    git submodule init && git submodule update && \
+    make
 
 
 RUN mv $SRC/minimap2-fusion/* $BIN/
