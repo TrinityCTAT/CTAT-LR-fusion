@@ -10,7 +10,7 @@ use SAM_reader;
 use SAM_entry;
 use Data::Dumper;
 
-my $usage = "\n\n\tusage: $0 genePairContig.gtf LR_gmap.gff3 output_prefix\n\n\n";
+my $usage = "\n\n\tusage: $0 genePairContig.gtf LR_mm2.gff3 output_prefix\n\n\n";
 
 my $gtf_file = $ARGV[0] or die $usage;
 my $gff3_align_file = $ARGV[1] or die $usage;
@@ -143,7 +143,12 @@ sub parse_gtf_file {
         my ($lend, $rend) = ($x[3], $x[4]);
         push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
         
-
+        
+        my $strand = $x[6];
+        unless ($strand eq '+') {
+            confess "Error, FI contigs should always have annotations on the + strand only";
+        }
+        
 
         # get original coordinate mapping info
         $info =~ /orig_coord_info \"([^,]+),(\d+),(\d+),([+-])\"/ or die "Error, cannot parse original coordinate info from $info";
@@ -151,15 +156,17 @@ sub parse_gtf_file {
         my $orig_lend = $2;
         my $orig_rend = $3;
         my $orig_orient = $4;
-
+        
+        my ($orig_end5, $orig_end3) = ($orig_orient eq '+') ? ($orig_lend, $orig_rend) : ($orig_rend, $orig_lend);
+        
         $orig_coord_info_href->{$scaffold_id}->{$lend} = { chrom => $orig_chr,
-                                                           coord => $orig_lend,
+                                                           coord => $orig_end5,
                                                            orient => $orig_orient,
                                                            contig_coord => $lend,
         };
 
         $orig_coord_info_href->{$scaffold_id}->{$rend} = { chrom => $orig_chr,
-                                                           coord => $orig_rend,
+                                                           coord => $orig_end3,
                                                            orient => $orig_orient,
                                                            contig_coord => $rend,
         };
@@ -381,12 +388,11 @@ sub organize_original_coordinate_info {
 
 
 sub infer_genome_breakpoint_from_local_coord {
-    my ($break_lend, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref) = @_;
+    my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref) = @_;
 
-    
-    if (my $struct = $scaffold_orig_coord_info_href->{$break_lend}) {
+    if (my $struct = $scaffold_orig_coord_info_href->{$break_coord}) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
-        
+
         return("$chrom:$coord:$orient", 1);
     }
     else {
@@ -396,7 +402,7 @@ sub infer_genome_breakpoint_from_local_coord {
         my $closest_struct = undef;
         foreach my $struct (@$scaffold_coordinate_mappings_aref) {
             my $contig_coord = $struct->{contig_coord};
-            my $delta = $contig_coord - $break_lend;
+            my $delta = $break_coord - $contig_coord;
             if ( (! defined($smallest_delta)) || abs($delta) < abs($smallest_delta)) {
                 $smallest_delta = $delta;
                 $closest_struct = $struct;
@@ -412,6 +418,7 @@ sub infer_genome_breakpoint_from_local_coord {
         else {
             $coord = $closest_struct->{coord} - $smallest_delta;
         }
+        print STDERR "$chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
         return("$chrom:$coord:$orient", 0);
         
     }
