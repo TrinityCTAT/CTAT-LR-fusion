@@ -269,7 +269,7 @@ main: {
         . " --fusions $FI_listing "
         . " --gtf $REF_GTF"
         . " --genome_fa $genome_lib_dir/ref_genome.fa"
-        . " --out_prefix LR-FI_targets"
+        . " --out_prefix $intermediates_dir/LR-FI_targets"
         . " --shrink_introns --max_intron_length $shrink_intron_max_length ";
     
     $pipeliner->add_commands(new Command($cmd, "FI_contigs.ok"));
@@ -277,30 +277,29 @@ main: {
     $pipeliner->run();
 
     ## prep for mm2
-    my $FI_splice_bed = "LR-FI_targets.gtf.mm2.splice.bed";
-    my $FI_mm2 = "LR-FI_targets.fa.mm2";
-        
-    &prep_minimap2_reference("LR-FI_targets.fa", ".", $FI_mm2, $FI_splice_bed, "LR-FI_targets.gtf");
+    my $FI_splice_bed = "$intermediates_dir/LR-FI_targets.gtf.mm2.splice.bed";
+    my $FI_mm2 = "$intermediates_dir/LR-FI_targets.fa.mm2";
     
+    &prep_minimap2_reference("$intermediates_dir/LR-FI_targets.fa", $intermediates_dir, $FI_mm2, $FI_splice_bed, "$intermediates_dir/LR-FI_targets.gtf");
     
     ## run mm2 using the chimeric candidates:
-    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2  $chim_candidates_fasta > LR-FI.mm2.sam";
+    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
     
-    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl LR-FI.mm2.sam > LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl $intermediates_dir/LR-FI.mm2.sam > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
 
-    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl LR-FI_targets.gtf  LR-FI.mm2.gff3 LR-FI.mm2.fusion_transcripts >  LR-FI.mm2.fusion_transcripts";
+    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl $intermediates_dir/LR-FI_targets.gtf  $intermediates_dir/LR-FI.mm2.gff3 $intermediates_dir/LR-FI.mm2.fusion_transcripts >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
   
-    my $fusions_filename = "LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv";
+    my $fusions_filename = "$intermediates_dir/LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv";
     
     ###############################################
     ## Add regular FI for short reads if available.
     
     if ($left_fq ne "NA") {
         $cmd = "$FI_DIR/FusionInspector --fusions $FI_listing --genome_lib_dir $genome_lib_dir "
-            . " --FI_contigs_fa LR-FI_targets.fa --FI_contigs_gtf LR-FI_targets.gtf "
+            . " --FI_contigs_fa $intermediates_dir/LR-FI_targets.fa --FI_contigs_gtf $intermediates_dir/LR-FI_targets.gtf "
             . " --left_fq $left_fq ";
         if ($right_fq ne "NA") {
             $cmd .= " --right_fq $right_fq ";
@@ -308,10 +307,10 @@ main: {
     
         $pipeliner->add_commands(new Command($cmd, "FI_short_reads.ok"));
     
-        $fusions_filename = "mm2_and_FI_fusions_merged.tsv";
+        $fusions_filename = "$intermediates_dir/mm2_and_FI_fusions_merged.tsv";
 
         # merge FI with the mm2 fusions
-        $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $fusions_filename";
+        $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions $intermediates_dir/LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $fusions_filename";
         $pipeliner->add_commands(new Command($cmd, "merge_mm2_FI.ok"));
         
     }
@@ -344,17 +343,17 @@ main: {
     
     if ($NO_ANNOTATION_FILTER) {
         
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.wAnnot $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
 
     }
     else {
         
-        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename.post_blast_and_promiscuity_filter.wAnnot --genome_lib_dir $genome_lib_dir";
+        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename.post_blast_and_promiscuity_filter --genome_lib_dir $genome_lib_dir";
         $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
 
 
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
     }
@@ -377,20 +376,20 @@ main: {
 
 ####
 sub prep_minimap2_reference {
-    my ($genome_fa, $MM2_DB_DIR, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
+    my ($genome_fa, $intermediates_dir, $MM2_DB_NAME, $MM2_splice_file, $REF_GTF) = @_;
 
     
-    my $mm2_build_ok_checkpoint = "$MM2_DB_DIR/$MM2_DB_NAME.build.ok";
+    my $mm2_build_ok_checkpoint = "$MM2_DB_NAME.build.ok";
     if (-e $mm2_build_ok_checkpoint) {
         print STDERR "-checkpoint exists: $mm2_build_ok_checkpoint, so skipping.\n";
     }
     else {
         
         my $mm2_prep_pipeliner = new Pipeliner(-verbose => 2,
-                                               -checkpoint_dir => "$MM2_DB_DIR/__mm2_prep_chkpts");
+                                               -checkpoint_dir => "$intermediates_dir/__mm2_prep_chkpts");
         
         
-        my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -d $MM2_DB_DIR/$MM2_DB_NAME $genome_fa";
+        my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -d $MM2_DB_NAME $genome_fa";
         $mm2_prep_pipeliner->add_commands(new Command($cmd, "mm2_prep_genome.ok"));
         
         $cmd = "$CTAT_MINIMAP2_DIR/misc/paftools.ctat.js gff2bed $REF_GTF > $MM2_splice_file";
