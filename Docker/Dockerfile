@@ -157,7 +157,7 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
 
 
 ENV ctat_LR_fusion_version 0.1.0
-ENV CTAT_LR_FUSION_CO a6792d67b53fddbe0a399f3d2592b9e31f729ead
+ENV CTAT_LR_FUSION_CO f60e18eca6c0a7ce40bd01545af0989a283a7981
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
@@ -168,7 +168,7 @@ RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && 
     make
 
 
-RUN mv $SRC/minimap2-fusion/* $BIN/
+RUN mv $SRC/CTAT-LR-fusion/* $BIN/
 
 RUN pip install pandas
 
