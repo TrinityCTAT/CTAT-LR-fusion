@@ -130,6 +130,16 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
     mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
+WORKDIR $SRC
+RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
+    tar xvf htslib-1.17.tar.bz2 && \
+    cd htslib-1.17 && \
+    ./configure && make && make install
+
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+RUN pip install pysam
 
 
 #######
@@ -144,24 +154,21 @@ WORKDIR $SRC
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
     
-RUN ln -s /usr/bin/python3 /usr/bin/python
 
 
 ENV minimap2_fusion_version 0.1.0
 ENV MM2_FUSION_CO a6792d67b53fddbe0a399f3d2592b9e31f729ead
 
-RUN git clone https://github.com/TrinityCTAT/minimap2-fusion.git  && \
+RUN git clone --recursive https://github.com/TrinityCTAT/minimap2-fusion.git  && \
 	cd minimap2-fusion && \
     git checkout ${MM2_FUSION_CO} && \
     git submodule init && git submodule update && \
+    git submodule foreach --recursive git submodule init && \
+    git submodule foreach --recursive git submodule update && \
     make
 
 
 RUN mv $SRC/minimap2-fusion/* $BIN/
 
-WORKDIR $SRC
-RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
-    tar xvf htslib-1.17.tar.bz2 && \
-    cd htslib-1.17 && \
-    ./configure && make && make install
+RUN pip install pandas
 
