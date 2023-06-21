@@ -315,42 +315,54 @@ main: {
         $pipeliner->add_commands(new Command($cmd, "merge_mm2_FI.ok"));
         
     }
-    
 
-    ###############################################
-    ## FusionFilter
-    ###############################################
-    
-    my $preliminary_report_file = $fusions_filename;
-    
-    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $preliminary_report_file --genome_lib_dir $genome_lib_dir";
-    $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
-        
 
     #################################
     ## Fusion Annotator
     #################################
-
-    $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $preliminary_report_file.post_blast_and_promiscuity_filter > $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot";
+    
+    $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $fusions_filename > $fusions_filename.wAnnot";
     $pipeliner->add_commands(new Command($cmd, "annotate_fusions.ok"));
     
+    $fusions_filename = "$fusions_filename.wAnnot";
+    
+    ## consider this the pre-filtered preliminary report
+    my $preliminary_report_file = "minimap2-fusion.fusion_predictions.preliminary.tsv";
+    $cmd = "cp $fusions_filename $preliminary_report_file";
+    $pipeliner->add_commands(new Command($cmd, "cp_to_prelim.ok"));
+    
+        
+    ###############################################
+    ## FusionFilter
+    ###############################################
+    
+        
+    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $fusions_filename --genome_lib_dir $genome_lib_dir";
+    $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
+        
 
+    
     if ($NO_ANNOTATION_FILTER) {
         
-        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.wAnnot $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
 
     }
     else {
         
-        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot --genome_lib_dir $genome_lib_dir";
+        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename.post_blast_and_promiscuity_filter.wAnnot --genome_lib_dir $genome_lib_dir";
         $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
 
 
-        $cmd = "cp $preliminary_report_file.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.wAnnot.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
     }
+
+    # perform final filtering.
+    
+    
+
     
     $pipeliner->run();
     

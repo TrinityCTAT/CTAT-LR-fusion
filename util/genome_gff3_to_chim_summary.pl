@@ -6,9 +6,11 @@ use warnings;
 use Data::Dumper;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 use List::Util qw (min max);
+use FindBin;
+use lib ("$FindBin::Bin/../PerlLib");
 use Set::IntervalTree;
 
-my $MIN_PER_ID = 98;
+my $min_per_id;
 
 
 my $usage = <<__EOUSAGE__;
@@ -21,7 +23,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --annot_gtf <string>        transcript structures in gtf file format.
 #
-#  --min_per_id <float>        minimum percent identity (default: $MIN_PER_ID)
+#  --min_per_id <float>        minimum percent identity (default: $min_per_id)
 #
 ######################################################################
 
@@ -38,7 +40,7 @@ my $annot_gtf_file;
 &GetOptions ( 'h' => \$help_flag,
               'align_gff3=s' => \$align_gff3_file,
               'annot_gtf=s' => \$annot_gtf_file,
-              'min_per_id=f' => \$MIN_PER_ID,
+              'min_per_id=f' => \$min_per_id,
               
               );
 
@@ -47,7 +49,7 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($align_gff3_file && $annot_gtf_file) {
+unless ($align_gff3_file && $annot_gtf_file && defined($min_per_id) && $min_per_id > 1) {
     die $usage;
 }
 
@@ -189,7 +191,7 @@ main: {
             
             eval {
                 my $span_struct = &convert_to_span($exon_hits_aref);
-                if ($span_struct->{per_id} >= $MIN_PER_ID) {
+                if ($span_struct->{per_id} >= $min_per_id) {
                     push (@spans, $span_struct);
                 }
             };
