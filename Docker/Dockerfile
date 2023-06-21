@@ -156,12 +156,12 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
     
 
 
-ENV minimap2_fusion_version 0.1.0
-ENV MM2_FUSION_CO a6792d67b53fddbe0a399f3d2592b9e31f729ead
+ENV ctat_LR_fusion_version 0.1.0
+ENV CTAT_LR_FUSION_CO a6792d67b53fddbe0a399f3d2592b9e31f729ead
 
-RUN git clone --recursive https://github.com/TrinityCTAT/minimap2-fusion.git  && \
-	cd minimap2-fusion && \
-    git checkout ${MM2_FUSION_CO} && \
+RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
+	cd CTAT-LR-fusion && \
+    git checkout ${CTAT_LR_FUSION_CO} && \
     git submodule init && git submodule update && \
     git submodule foreach --recursive git submodule init && \
     git submodule foreach --recursive git submodule update && \

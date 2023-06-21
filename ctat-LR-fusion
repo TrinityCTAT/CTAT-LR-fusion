@@ -16,7 +16,7 @@ my $VERSION = "v0.1.0";
 
 my $CPU = 4;
 my $MIN_TRANS_LEN_TRY_CHIM = 30;
-my $output_directory = "minimap2_fusion_outdir";
+my $output_directory = "ctat_LR_fusion_outdir";
 my $MIN_NOVEL_J = 3;
 my $MIN_J = 1;
 my $MIN_SUM_JS = 1;
@@ -136,7 +136,7 @@ if ($help_flag) {
 }
 
 if ($SHOW_VERSION) {
-    print "\n\nminimap2-fusion $VERSION\n\n";
+    print "\n\nctat-LR-fusion $VERSION\n\n";
     exit(0);
 }
 
@@ -326,7 +326,7 @@ main: {
     $fusions_filename = "$fusions_filename.wAnnot";
     
     ## consider this the pre-filtered preliminary report
-    my $preliminary_report_file = "minimap2-fusion.fusion_predictions.preliminary.tsv";
+    my $preliminary_report_file = "ctat-LR-fusion.fusion_predictions.preliminary.tsv";
     $cmd = "cp $fusions_filename $preliminary_report_file";
     $pipeliner->add_commands(new Command($cmd, "cp_to_prelim.ok"));
     
@@ -343,7 +343,7 @@ main: {
     
     if ($NO_ANNOTATION_FILTER) {
         
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
 
     }
@@ -353,7 +353,7 @@ main: {
         $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
 
 
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.annot_filter.pass $output_directory/minimap2-fusion.fusion_predictions.tsv";
+        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.annot_filter.pass $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
         $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
     }
@@ -366,7 +366,7 @@ main: {
     $pipeliner->run();
     
 
-    print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/minimap2-fusion.fusion_predictions.tsv\n\n\n";
+    print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/ctat-LR-fusion.fusion_predictions.tsv\n\n\n";
     
     exit(0); ### stopping here now.
 
