@@ -1,7 +1,7 @@
 version 1.0
 
 
-workflow minimap2_fusion_wf {
+workflow ctat_LR_fusion_wf {
 
     input {
        String sample_name
@@ -23,7 +23,7 @@ workflow minimap2_fusion_wf {
       
      }
     
-     call MINIMAP2_FUSION_TASK {
+     call CTAT_LR_FUSION_TASK {
         input:
           sample_name=sample_name,
           transcripts=transcripts,
@@ -37,13 +37,13 @@ workflow minimap2_fusion_wf {
           cpu=cpu,
           memory=memory,
           preemptible=preemptible,
-	      maxRetries=maxRetries,
+          maxRetries=maxRetries,
           disk_space_multiplier=disk_space_multiplier    
      }
 }
 
 
-task MINIMAP2_FUSION_TASK {
+task CTAT_LR_FUSION_TASK {
 
     input {
        String sample_name
@@ -72,23 +72,28 @@ task MINIMAP2_FUSION_TASK {
     tar xvf ~{genome_lib_tar}
     rm ~{genome_lib_tar}
     
-    # minimap2-fusion
+    # ctat-LR-fusion
 
-    minimap2-fusion --version
+    ctat-LR-fusion --version
 
-    minimap2-fusion -T ~{transcripts} \
+    ctat-LR-fusion -T ~{transcripts} \
                 --genome_lib_dir ctat_genome_lib_build_dir \
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
                 --min_per_id ~{min_per_id} \
-                -o minimap2_fusion_outdir
+                -o ctat_LR_fusion_outdir
 
 
-    mv minimap2_fusion_outdir/minimap2-fusion.fusion_predictions.tsv ~{sample_name}.minimap2-fusion.fusion_predictions.tsv 
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv
+  
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv 
+    
+
 
     >>>
     
     output {
-      File fusion_report="~{sample_name}.minimap2-fusion.fusion_predictions.tsv"
+      File fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv"
+      File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv"
     }
     
 

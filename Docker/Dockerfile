@@ -154,10 +154,10 @@ WORKDIR $SRC
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
     
-
+RUN pip install pandas
 
 ENV ctat_LR_fusion_version 0.1.0
-ENV CTAT_LR_FUSION_CO f60e18eca6c0a7ce40bd01545af0989a283a7981
+ENV CTAT_LR_FUSION_CO 1eebcf533f7a0bee54743674b97ea6ae71fc10d1
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
@@ -170,5 +170,5 @@ RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && 
 
 RUN mv $SRC/CTAT-LR-fusion/* $BIN/
 
-RUN pip install pandas
+
 
