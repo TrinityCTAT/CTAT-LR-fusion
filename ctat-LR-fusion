@@ -164,7 +164,7 @@ my $FI_DIR = "$FindBin::RealBin/FusionInspector";
 my $CTAT_MINIMAP2_DIR = "$FindBin::RealBin/ctat-minimap2";
 
 my $MM2_DB_DIR = $genome_lib_dir;
-my $MM2_DB_NAME = "ref_genome.fa.mm2";
+my $MM2_DB_NAME = "$MM2_DB_DIR/ref_genome.fa.mm2";
 
 my $REF_GTF = "$genome_lib_dir/ref_annot.gtf";
 unless (-s $REF_GTF) {
@@ -182,7 +182,7 @@ if ($PREP_REFERENCE || $PREP_REFERENCE_ONLY) {
     }
 }
 
-my $MM2_idx = "$MM2_DB_DIR/$MM2_DB_NAME";
+my $MM2_idx = $MM2_DB_NAME;
 unless (-e $MM2_idx) {
     die "Error, cannot locate minimap2 database: $MM2_idx";
 }
