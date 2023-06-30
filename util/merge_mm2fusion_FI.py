@@ -31,7 +31,7 @@ def main():
 
     logger.info("-merging data frames.")
     merged_df = pd.merge(mm2_df, FI_df,
-                         on=['#FusionName', 'LeftLocalBreakpoint', 'RightLocalBreakpoint', 'LeftBreakpoint', 'RightBreakpoint'],
+                         on=['#FusionName', 'LeftLocalBreakpoint', 'RightLocalBreakpoint', 'LeftBreakpoint', 'RightBreakpoint', 'SpliceType'],
                          how='outer')
     
 
