@@ -14,7 +14,7 @@ workflow ctat_LR_fusion_wf {
        File? illumina_left_fq
        File? illumina_right_fq
       
-       String docker="trinityctat/minimap2fusion:latest"
+       String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
        String memory="50G"
        Int preemptible = 0
