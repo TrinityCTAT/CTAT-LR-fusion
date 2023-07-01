@@ -35,11 +35,12 @@ def create_fusion_report(template, fusions, output_filename, input_file_prefix):
 
     output_lines = []
     #insert json for fusion selection table
-    with open(fusions, "r") as f:
+    with open(fusions, "rt") as f:
         j = json.loads(f.read())
-        flattend_json = json.dumps(j)
+        flattened_json = json.dumps(j)
 
-    output_lines.append('var tableJson = ' + flattend_json)
+
+    output_lines.append('var tableJson = ' + flattened_json)
 
 
     ## make data uri's for each of the referenced input filenames in the html doc

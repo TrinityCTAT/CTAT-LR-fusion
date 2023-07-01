@@ -430,12 +430,44 @@ sub include_IGV_REPORTS {
         mkdir($igv_prep_dir) or die "Error, cannot mkdir $igv_prep_dir";
     }
     
+
+    ## include the fusion gene targets and annotations:
+    
+    $cmd = "ln -sf $FI_contigs_file $igv_prep_dir/igv.genome.fa";
+    $pipeliner->add_commands(new Command($cmd, "symlink_igv_genome_fa.ok"));
+
+    $cmd = "ln -sf $FI_contigs_file.fai $igv_prep_dir/igv.genome.fa.fai";
+    $pipeliner->add_commands(new Command($cmd, "symlink_igv_genome_fa.fai.ok"));
+
+    $cmd = "ln -sf $FI_annots_gtf $igv_prep_dir/igv.annot.gtf";
+    $pipeliner->add_commands(new Command($cmd, "symlink_igv_genome_annot.ok"));
+
+    ## get the long read alignments
+    $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.sam -T $FI_contigs_file -o $igv_prep_dir/igv.LR.bam && samtools index $igv_prep_dir/igv.LR.bam";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.bam.ok"));
+
+    
+    ## get the FI short read alignment evidence if it exists.
+    my $FI_junction_sam = "$output_directory/FI/fi_workdir/finspector.star.cSorted.dupsMarked.bam.fusion_junc_reads.sam";
+    if (-e $FI_junction_sam) {
+        $cmd = "samtools view -Sb $FI_junction_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.junction_reads.bam && samtools index $igv_prep_dir/igv.illumina.junction_reads.bam";
+        $pipeliner->add_commands(new Command($cmd, "igv.illumina.junction_reads.ok"));
+    }
+
+    my $FI_spanning_sam = "$output_directory/FI/fi_workdir/finspector.star.cSorted.dupsMarked.bam.fusion_span_reads.sam";
+    if (-e $FI_spanning_sam) {
+        $cmd = "samtools view -Sb $FI_spanning_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.spanning_frags.bam && samtools index $igv_prep_dir/igv.illumina.spanning_frags.bam";
+        $pipeliner->add_commands(new Command($cmd, "igv.illumina.spanning_frags.ok"));
+    }
+
+    
+
     ########## Pfam Matches
     ## add pfam matches in genome coordinates:
 
     my $pfam_igv_gff3_filename = "$igv_prep_dir/igv.pfam.gff3";
     
-    my $cmd = "$FI_UTILDIR/get_pfam_domain_info.pl " 
+    $cmd = "$FI_UTILDIR/get_pfam_domain_info.pl " 
         . " --finspector_gtf $FI_annots_gtf "
         . " --genome_lib_dir $genome_lib_dir "
         . " > $pfam_igv_gff3_filename" ;
@@ -467,7 +499,14 @@ sub include_IGV_REPORTS {
     
     $pipeliner->add_commands(new Command($cmd, "prep_igv_seqsim_bed.ok") );
 
-    ## generate the fusion-inspector-web galaxy js
+    
+    
+    
+
+
+
+    ################################
+    ## generate the fusion json table
 
     my $json_file = "$igv_prep_dir/igv.fusion_inspector_web.json";
     

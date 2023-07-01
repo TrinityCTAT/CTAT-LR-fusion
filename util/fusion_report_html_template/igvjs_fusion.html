@@ -159,7 +159,7 @@
                 showKaryo: false,
                 locus: initialFusion,
                 reference: {
-                    fastaURL: "__PREFIX__.fa",
+                    fastaURL: "__PREFIX__.genome.fa",
                     cytobandURL: "cytoBand.txt",
                 },
                 tracks: [
@@ -170,17 +170,17 @@
 
                     {
                         label: "ref_annot",
-                        url: "__PREFIX__.bed",
+                        url: "__PREFIX__.annot.gtf",
                         displayMode: "SQUISHED",
                         indexed: false,
                         order: 10,
                         type: "annotation",
-                        format: "bed"
+                        format: "gtf"
                     },
 
                     {
                         label: "Pfam",
-                        url: "__PREFIX__.igv.Pfam.bed",
+                        url: "__PREFIX__.pfam.bed",
                         displayMode: "SQUISHED",
                         indexed: false,
                         order: 10,
@@ -191,7 +191,7 @@
 
                     {
                         label: "SeqSimilar",
-                        url: "__PREFIX__.igv.seqsimilar.bed",
+                        url: "__PREFIX__.seqsimilar.bed",
                         displayMode: "SQUISHED",
                         indexed: false,
                         order: 10,
@@ -201,26 +201,17 @@
                     },
 	
                     {
-                        label: "Junction_Spanning_View",
-                        type: "FusionJuncSpan",
-                        url: "__PREFIX__.igv.FusionJuncSpan",
-                        displayMode: "SQUISHED",
-                        indexed: false,
-                        order: 20
+                        url: "__PREFIX__.LR.bam",
+                        label: "Long_Read_Alignments",
+                        type: "bam",
+                        height: 100,
+                        indexed: true,
+                        visibilityWindow: 2000000,
+                        order: 35
                     },
+
                     {
-                        url: "__PREFIX__.junction_reads.bam.bed",
-                        label: "Junction_Reads",
-                        displayMode: "SQUISHED",
-                        minHeight: 30,
-                        maxHeight: 100,
-                        color: "cyan",
-                        indexed: false,
-                        order: 40,
-                        type: "bed"
-                    },
-                    {
-                        url: "__PREFIX__.junction_reads.bam",
+                        url: "__PREFIX__.illumina.junction_reads.bam",
                         label: "Junction_Reads_Alignments",
                         type: "bam",
                         height: 100,
@@ -228,19 +219,9 @@
                         visibilityWindow: 2000000,
                         order: 45
                     },
+
                     {
-                        url: "__PREFIX__.spanning_reads.bam.bed",
-                        label: "Spanning_Reads",
-                        displayMode: "SQUISHED",
-                        minHeight: 30,
-                        maxHeight: 100,
-                        color: "purple",
-                        indexed: false,
-                        order: 50,
-                        type: "bed"
-                    },
-                    {
-                        url: "__PREFIX__.spanning_reads.bam",
+                        url: "__PREFIX__.illumina.spanning_frags.bam",
                         type: "bam",
                         label: "Spanning_Reads_Alignments",
                         height: 100,
@@ -251,23 +232,13 @@
                 ]
             };
 
-        if (data["__PREFIX__.gmap_trinity_GG.fusions.gff3.bed"]) {
-            options.tracks.push({
-                label: "Trinity_Fusion",
-                url: "__PREFIX__.gmap_trinity_GG.fusions.gff3.bed",
-                displayMode: "EXPANDED",
-                color: "green",
-                indexed: false,
-                order: 30,
-                type: "bed"
-            });
-        }
+        
 
         return igv.createBrowser(divBrowser, options)
 
 
     }
-
+	
     function goToFusion(fusionChr) { //, fusionBreakRight, fusionBreakLeft ){
 
         var location = fusionChr
@@ -320,7 +291,7 @@
 
     function loadFusionDataTable() {
 
-        var forcedHeaderKeyOrder = ['Fusion', 'Junction Reads', 'Spanning Fragments', 'Splice Type', 'Left Gene', 'Left Chr', 'Left Pos', 'Left Strand', 'Right Gene', 'Right Chr', 'Right Pos', "Right Strand"];
+        var forcedHeaderKeyOrder = ['Fusion', "# Long Reads", 'Junction Reads', 'Spanning Fragments', "Expr Level (FFPM)", 'Splice Type', 'Left Gene', 'Left Breakpoint', 'Right Breakpoint', "Annotations"];
 
         var fusionKeys = [];
         for (var fusionKey in fusionInspectorState.cache.json.fusions[0]) {
