@@ -6,7 +6,8 @@ workflow ctat_LR_fusion_wf {
     input {
        String sample_name
        File transcripts
-       File genome_lib_tar
+       File genome_lib_tar_mm2_only
+       File genome_lib_tar_with_STAR_idx
        Int min_per_id=90
        Int min_J = 1
        Int min_sumJS = 1    
@@ -28,7 +29,7 @@ workflow ctat_LR_fusion_wf {
         input:
           sample_name=sample_name,
           transcripts=transcripts,
-          genome_lib_tar=genome_lib_tar,
+          genome_lib_tar= if defined(illumina_left_fq) then genome_lib_tar_with_STAR_idx else genome_lib_tar_mm2_only,
           min_per_id=min_per_id,
           min_J=min_J,
           min_sumJS=min_sumJS,    
