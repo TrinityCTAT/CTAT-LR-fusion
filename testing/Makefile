@@ -6,11 +6,11 @@ all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz
 
 
 test_incl_shortreads:
-	../ctat-LR-fusion -T transcripts.fa --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.incl_short
+	../ctat-LR-fusion -T transcripts.fa --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.incl_short --vis
 
 
 test_excl_shortreads:
-	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.excl_short --min_J 1  --min_sumJS 1
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o mm2_fusion_outdir.excl_short --min_J 1  --min_sumJS 1 --vis
 
 
 test_longOnly_fqgz:

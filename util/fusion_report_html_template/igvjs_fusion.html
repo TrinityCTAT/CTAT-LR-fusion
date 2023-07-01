@@ -208,9 +208,12 @@
                         indexed: true,
                         visibilityWindow: 2000000,
                         order: 35
-                    },
+                    }
+ 	            ]
+        };
 
-                    {
+        if (data["__PREFIX__.illumina.junction_reads.bam"]) {
+               options.tracks.push({
                         url: "__PREFIX__.illumina.junction_reads.bam",
                         label: "Junction_Reads_Alignments",
                         type: "bam",
@@ -218,9 +221,11 @@
                         indexed: true,
                         visibilityWindow: 2000000,
                         order: 45
-                    },
+                    });
+        }
 
-                    {
+        if (data["__PREFIX__.illumina.spanning_frags.bam"]) { 
+                options.tracks.push({                   
                         url: "__PREFIX__.illumina.spanning_frags.bam",
                         type: "bam",
                         label: "Spanning_Reads_Alignments",
@@ -228,9 +233,10 @@
                         indexed: true,
                         visibilityWindow: 2000000,
                         order: 55
-                    }
-                ]
-            };
+                    });
+
+                
+        }
 
         
 
@@ -294,7 +300,7 @@
         var forcedHeaderKeyOrder = ['Fusion', "# Long Reads", 'Junction Reads', 'Spanning Fragments', "Expr Level (FFPM)", 'Splice Type', 'Left Gene', 'Left Breakpoint', 'Right Breakpoint', "Annotations"];
 
         var fusionKeys = [];
-        for (var fusionKey in fusionInspectorState.cache.json.fusions[0]) {
+        for (var fusionKey in forcedHeaderKeyOrder) { //fusionInspectorState.cache.json.fusions[0]) {
             if (fusionInspectorState.cache.json.fusions[0].hasOwnProperty(fusionKey)) {
                 fusionKeys.push(fusionKey);
             }

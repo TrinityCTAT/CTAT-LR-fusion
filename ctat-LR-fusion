@@ -433,7 +433,7 @@ sub include_IGV_REPORTS {
 
     ## include the fusion gene targets and annotations:
     
-    $cmd = "ln -sf $FI_contigs_file $igv_prep_dir/igv.genome.fa";
+    my $cmd = "ln -sf $FI_contigs_file $igv_prep_dir/igv.genome.fa";
     $pipeliner->add_commands(new Command($cmd, "symlink_igv_genome_fa.ok"));
 
     $cmd = "ln -sf $FI_contigs_file.fai $igv_prep_dir/igv.genome.fa.fai";
@@ -525,7 +525,7 @@ sub include_IGV_REPORTS {
     $cmd = "$UTILDIR/fusion-reports/create_fusion_report.py"
         . " --html_template $html_template "
         . " --fusions_json $json_file "
-        . " --input_file_prefix igvjs.ctat-LR-fusion"
+        . " --input_file_prefix $igv_prep_dir/igv"
         . " --html_output $output_directory/ctat-LR-fusion.fusion_inspector_web.html";
 
     
