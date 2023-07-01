@@ -1,6 +1,7 @@
 
 simple: test_excl_shortreads
 
+both:  test_incl_shortreads test_excl_shortreads
 
 all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz
 

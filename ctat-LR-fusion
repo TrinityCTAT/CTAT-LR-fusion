@@ -15,16 +15,46 @@ my $VERSION = "v0.1.0";
 
 
 my $CPU = 4;
-my $MIN_TRANS_LEN_TRY_CHIM = 30;
 my $output_directory = "ctat_LR_fusion_outdir";
-my $MIN_NOVEL_J = 3;
+
+
+#  long read filters
+my $MIN_NUM_LR = 1;
+my $MIN_LR_NOVEL = 2;
+
+
+# short read filters
 my $MIN_J = 1;
 my $MIN_SUM_JS = 1;
+my $MIN_NOVEL_J = 3;
+
 
 my $MIN_PER_ID = 90;
 
-my $SPLIT_BREAKPOINT_EXTEND_LENGTH = 25;
-my $MAX_FUZZY_OVERLAP = 12;
+my $genome_lib_dir = $ENV{CTAT_GENOME_LIB};
+
+my $help_flag;
+my $transcripts_file;
+my $left_fq = "NA";
+my $right_fq = "NA";
+
+my $DEBUG = 0;
+
+
+my $SHOW_VERSION = 0;
+my $NO_ANNOTATION_FILTER = 0;
+
+my $PREP_REFERENCE = 0;
+my $PREP_REFERENCE_ONLY = 0;
+
+my $max_intron_length = 100000;
+
+my $NO_SHRINK_INTRONS = 0;
+my $shrink_intron_max_length = 1000;
+
+my $NO_ABUNDANCE_FILTER = 0;
+
+my $IGV_REPORTS = 0;
 
 
 my $usage = <<__EOUSAGE__;
@@ -35,8 +65,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --transcripts|T <string>        :transcript fasta or fastq file
 #
-#  --genome_lib_dir <string>             directory containing genome lib (see http://FusionFilter.github.io for details)
-#
+#  --genome_lib_dir <string>       directory containing genome lib (see https://github.com/NCIP/ctat-genome-lib-builder/wiki for details)
+#                                      (defaults to env CTAT_GENOME_LIB if set. -- currently: [ $genome_lib_dir ] )      
 #  Optional:
 #
 #  --vis                           :include igv-report visualization html
@@ -47,25 +77,48 @@ my $usage = <<__EOUSAGE__;
 #
 #  --right_fq <string>             :Illumina paired-end reads /2
 #
-#  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID)
+#  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID) minimap2 alignments < --min_per_id are discarded.
 #
-#  --min_chim_len|L <int>            :minimum length for a chimeric alignment (default: $MIN_TRANS_LEN_TRY_CHIM)
 #
 #  --output|o <string>             :output directory name (default: $output_directory)
 #
-#   
+#  ##############################
+#  Filtering by evidence support:
+#  
+#   ###############################################################################################################################################  
+#   # Fusions are reported if the meet the following requirements:
+#   #
+#   # Long reads:  (min_num_LR & canonical splice) or (min_LR_novel_junction_support & non canonical splicing))
+#   #    (or)
+#   # Short reads: (min_J & min_sumJS & canonical splice & min_FFPM) or (min_novel_junction_support & min_sumJS & non canonocial splicing & min_FFPM) 
+#   #################################################################################################################################################
+#
+#  Long read filtering:
+#
+#  --min_num_LR <int>            : min number of long reads supporting fusion including canonical splicing at breakpoint (default: $MIN_NUM_LR)
+#
+#  --min_LR_novel_junction_support <int>   : min number of long reads with support at noncanonical splice breakpoint (eg. maybe not spliced!) (default: $MIN_LR_NOVEL)
+#  
+# Short read abundance filters:
+#
 #  --min_J <int>                 :minimum number of junction frags (default: $MIN_J)  
 #
 #  --min_sumJS <int>             :minimum sum (junction + spanning) frags (default: $MIN_SUM_JS)
 #
 #  --min_novel_junction_support <int>   :minimum number of junction reads required for novel (non-reference) exon-exon junction support.
 #                                        (default: $MIN_NOVEL_J)
-#  --split_breakpoint_extend_length <int>   :in assessing breakpoint quality, the length to extend each split sequence beyond
-#                                           the proposed breakpoint. (default: $SPLIT_BREAKPOINT_EXTEND_LENGTH)
 #
-#  --max_fuzzy_overlap <int>               :maximum allowed overlap of extended length from breakpoint (default: $MAX_FUZZY_OVERLAP)
+#  #############
+#  Misc options:
+#
+#  --max_intron_length <int>       : maximum intron length during minimap2 search (default: $max_intron_length)
+#
+#  --shrink_intron_length <int>    : length for shrinking long introns to during the FusionInspector-style alignments. default($shrink_intron_max_length)
+#  --no_shrink_introns             : disable intron shrinking during FusionInspector-style alignments.
 #
 #  --no_annot_filter               : disable filtering outputs based on fusion annotations.
+#
+#  --no_abundance_filter           : disable filtering based on read support
 #
 #  --prep_reference                : prepares mininmap2 genome index
 #  --prep_reference_only           : only prepares genome index and then stops.
@@ -81,24 +134,6 @@ __EOUSAGE__
     ;
 
 
-my $help_flag;
-my $transcripts_file;
-my $left_fq = "NA";
-my $right_fq = "NA";
-
-my $DEBUG = 0;
-my $genome_lib_dir;
-
-my $SHOW_VERSION = 0;
-my $NO_ANNOTATION_FILTER = 0;
-
-my $PREP_REFERENCE = 0;
-my $PREP_REFERENCE_ONLY = 0;
-
-my $max_intron_length = 100000;
-my $shrink_intron_max_length = 1000;
-
-my $IGV_REPORTS = 0;
 
 &GetOptions ( 'help|h' => \$help_flag,
 
@@ -111,14 +146,11 @@ my $IGV_REPORTS = 0;
 
               ## optional
               'CPU=i' => \$CPU,
-              'min_chim_len|L=i' => \$MIN_TRANS_LEN_TRY_CHIM,
               'output|o=s' => \$output_directory,
               'min_J=i' => \$MIN_J,
               'min_sumJS=i' => \$MIN_SUM_JS,
               'min_per_id=i' => \$MIN_PER_ID,
               'min_novel_junction_support=i' => \$MIN_NOVEL_J,
-              'split_breakpoint_extend_length=i' => \$SPLIT_BREAKPOINT_EXTEND_LENGTH,
-              'max_fuzzy_overlap=i' => \$MAX_FUZZY_OVERLAP,
               'version' => \$SHOW_VERSION,
               
               'no_annot_filter' => \$NO_ANNOTATION_FILTER,
@@ -126,10 +158,16 @@ my $IGV_REPORTS = 0;
               
               'prep_reference' => \$PREP_REFERENCE,
               'prep_reference_only' => \$PREP_REFERENCE_ONLY,
+              
+              'max_intron_length=i' => \$max_intron_length,
 
+              'no_shrink_introns' => \$NO_SHRINK_INTRONS, # introns are shrunk by default
               'shrink_intron_max_length=i' => \$shrink_intron_max_length,
               
               'vis' => \$IGV_REPORTS,
+
+              'no_abundance_filter' => \$NO_ABUNDANCE_FILTER,
+
 );
 
 
@@ -275,8 +313,11 @@ main: {
         . " --fusions $FI_listing "
         . " --gtf $REF_GTF"
         . " --genome_fa $genome_lib_dir/ref_genome.fa"
-        . " --out_prefix $intermediates_dir/LR-FI_targets"
-        . " --shrink_introns --max_intron_length $shrink_intron_max_length ";
+        . " --out_prefix $intermediates_dir/LR-FI_targets";
+
+    unless ($NO_SHRINK_INTRONS) {
+        $cmd .= " --shrink_introns --max_intron_length $shrink_intron_max_length ";
+    }
     
     $pipeliner->add_commands(new Command($cmd, "FI_contigs.ok"));
 
@@ -348,28 +389,41 @@ main: {
     $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $fusions_filename --genome_lib_dir $genome_lib_dir";
     $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
         
-
     
-    if ($NO_ANNOTATION_FILTER) {
+    $fusions_filename = "$fusions_filename.post_blast_and_promiscuity_filter";
+    
+    unless ($NO_ANNOTATION_FILTER) {
         
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
-        $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.no_annot_filter.ok"));
-
-    }
-    else {
-        
-        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename.post_blast_and_promiscuity_filter --genome_lib_dir $genome_lib_dir";
+        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename --genome_lib_dir $genome_lib_dir";
         $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
-
-
-        $cmd = "cp $fusions_filename.post_blast_and_promiscuity_filter.annot_filter.pass $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
-        $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
-
+        
+        $fusions_filename = "$fusions_filename.annot_filter.pass";
     }
 
-    # perform final filtering.
+    # perform final evidence abundance-based filtering.
+    unless ($NO_ABUNDANCE_FILTER) {
+        
+        $cmd = "$UTILDIR/filter_LR_fusions_by_evidence_abundance.py "
+            . " --min_num_LR $MIN_NUM_LR "
+            . " --min_LR_novel_junction_support $MIN_LR_NOVEL "
+            . " --min_J $MIN_J "
+            . " --min_sumJS $MIN_SUM_JS "
+            . " --min_novel_junction_support $MIN_NOVEL_J "
+            . " --fusions_input $fusions_filename "
+            . " --filtered_fusions_output $fusions_filename.filt_by_min_reads";
+
+        $pipeliner->add_commands(new Command($cmd, "filter_by_min_reads.ok"));
+        
+        $fusions_filename = "$fusions_filename.filt_by_min_reads";
+
+    }
     
     
+    ############################################
+    # Copy final fusions file as the deliverable:
+    
+    $cmd = "cp $fusions_filename $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
+    $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
     
     $pipeliner->run();
