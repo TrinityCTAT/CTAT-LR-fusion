@@ -11,7 +11,8 @@ workflow ctat_LR_fusion_wf {
        Int min_J = 1
        Int min_sumJS = 1    
        Int min_novel_junction_support = 1
-       
+       File? illumina_left_fq
+       File? illumina_right_fq
       
        String docker="trinityctat/minimap2fusion:latest"
        Int cpu = 10
@@ -32,6 +33,8 @@ workflow ctat_LR_fusion_wf {
           min_J=min_J,
           min_sumJS=min_sumJS,    
           min_novel_junction_support=min_novel_junction_support,
+	  illumina_left_fq=illumina_left_fq,
+	  illumina_right_fq=illumina_right_fq,
 
           docker=docker,
           cpu=cpu,
@@ -53,6 +56,8 @@ task CTAT_LR_FUSION_TASK {
        Int min_J
        Int min_sumJS    
        Int min_novel_junction_support
+       File? illumina_left_fq
+       File? illumina_right_fq
 
        String docker
        Int cpu
@@ -80,6 +85,8 @@ task CTAT_LR_FUSION_TASK {
                 --genome_lib_dir ctat_genome_lib_build_dir \
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
                 --min_per_id ~{min_per_id} \
+                --vis \
+                ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir
 
 
@@ -87,13 +94,14 @@ task CTAT_LR_FUSION_TASK {
   
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv 
     
-
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
 
     >>>
     
     output {
       File fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv"
       File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv"
+      File fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
     }
     
 
