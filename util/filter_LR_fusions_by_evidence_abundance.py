@@ -49,7 +49,7 @@ def main():
 
                  ( (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
                   |
-                 (data.num_LR >= min_LR_novel_junctoin_support)
+                 (data.num_LR >= min_LR_novel_junction_support)
             )
                 |
             (    # short read criteria
