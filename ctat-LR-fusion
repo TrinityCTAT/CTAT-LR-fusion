@@ -497,20 +497,20 @@ sub include_IGV_REPORTS {
     $pipeliner->add_commands(new Command($cmd, "symlink_igv_genome_annot.ok"));
 
     ## get the long read alignments
-    $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.sam -T $FI_contigs_file -o $igv_prep_dir/igv.LR.bam && samtools index $igv_prep_dir/igv.LR.bam";
+    $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.sam -T $FI_contigs_file -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.bam.ok"));
 
     
     ## get the FI short read alignment evidence if it exists.
     my $FI_junction_sam = "$output_directory/FI/fi_workdir/finspector.star.cSorted.dupsMarked.bam.fusion_junc_reads.sam";
     if (-e $FI_junction_sam) {
-        $cmd = "samtools view -Sb $FI_junction_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.junction_reads.bam && samtools index $igv_prep_dir/igv.illumina.junction_reads.bam";
+        $cmd = "samtools view -Sb $FI_junction_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.junction_reads.bam && samtools sort $igv_prep_dir/igv.illumina.junction_reads.bam -o $igv_prep_dir/igv.illumina.junction_reads.sorted.bam && samtools index $igv_prep_dir/igv.illumina.junction_reads.sorted.bam";
         $pipeliner->add_commands(new Command($cmd, "igv.illumina.junction_reads.ok"));
     }
 
     my $FI_spanning_sam = "$output_directory/FI/fi_workdir/finspector.star.cSorted.dupsMarked.bam.fusion_span_reads.sam";
     if (-e $FI_spanning_sam) {
-        $cmd = "samtools view -Sb $FI_spanning_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.spanning_frags.bam && samtools index $igv_prep_dir/igv.illumina.spanning_frags.bam";
+        $cmd = "samtools view -Sb $FI_spanning_sam -T $FI_contigs_file -o $igv_prep_dir/igv.illumina.spanning_frags.bam && samtools sort $igv_prep_dir/igv.illumina.spanning_frags.bam -o $igv_prep_dir/igv.illumina.spanning_frags.sorted.bam && samtools index $igv_prep_dir/igv.illumina.spanning_frags.sorted.bam";
         $pipeliner->add_commands(new Command($cmd, "igv.illumina.spanning_frags.ok"));
     }
 
