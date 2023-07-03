@@ -25,7 +25,7 @@ test_singularity:
 	singularity exec -e -B `pwd`:/data -B ${CTAT_GENOME_LIB}:/ctat_genome_lib ../Docker/ctat_lr_fusion.simg ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib --min_J 1  --min_sumJS 1 --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz -o ctat_LR_fusion_outdir.singularity --vis
 
 clean:
-	rm -rf ./ctat_LR_fusion_outdir.incl_short ./ctat_LR_fusion_outdir.excl_short*
+	rm -rf ./ctat_LR_fusion_outdir.incl_short ./ctat_LR_fusion_outdir.excl_short ./ctat_LR_fusion_outdir.singularity
 	sudo rm -rf ./ctat_LR_fusion_outdir.docker
 
 

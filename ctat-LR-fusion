@@ -264,7 +264,7 @@ main: {
     
     # make fasta file from fastq
     
-    print STDERR "-transcripts filename before: [$transcripts_file]\n";
+
     # first, check if gzipped.
     if ($transcripts_file =~ /\.gz$/) {
         my $uncompressed_transcripts_file = basename($transcripts_file);
@@ -281,7 +281,7 @@ main: {
             $transcripts_file = "$uncompressed_transcripts_file.fasta";
         }
     }
-    print STDERR "-transcripts filename after: [$transcripts_file]\n";
+
     
     ####################################################
     # run minimap2 to identify potential fusion transcripts
