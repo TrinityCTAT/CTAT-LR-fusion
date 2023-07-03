@@ -31,7 +31,7 @@ my $MIN_NOVEL_J = 3;
 
 my $MIN_PER_ID = 90;
 
-my $genome_lib_dir = $ENV{CTAT_GENOME_LIB};
+my $genome_lib_dir = $ENV{CTAT_GENOME_LIB} || "";
 
 my $help_flag;
 my $transcripts_file;

@@ -1,0 +1,5 @@
+
+
+# singularity images stored at:
+
+gs://trinityctatfusion_rs/Singularity/ctat_lr_fusion.v${VERSION}.simg
