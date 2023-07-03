@@ -56,6 +56,7 @@ my $NO_ABUNDANCE_FILTER = 0;
 
 my $IGV_REPORTS = 0;
 
+my $MAX_EXON_DELTA = 50;
 
 my $usage = <<__EOUSAGE__;
 
@@ -111,6 +112,8 @@ my $usage = <<__EOUSAGE__;
 #  #############
 #  Misc options:
 #
+#  --max_exon_delta <int>          : maximum allowed distance of fusion breakpoint from reference exon boundary in initial candidate search. (default: $MAX_EXON_DELTA)
+#
 #  --max_intron_length <int>       : maximum intron length during minimap2 search (default: $max_intron_length)
 #
 #  --shrink_intron_length <int>    : length for shrinking long introns to during the FusionInspector-style alignments. default($shrink_intron_max_length)
@@ -160,7 +163,8 @@ __EOUSAGE__
               'prep_reference_only' => \$PREP_REFERENCE_ONLY,
               
               'max_intron_length=i' => \$max_intron_length,
-
+	      'max_exon_delta=i' => \$MAX_EXON_DELTA,
+	      
               'no_shrink_introns' => \$NO_SHRINK_INTRONS, # introns are shrunk by default
               'shrink_intron_max_length=i' => \$shrink_intron_max_length,
               
@@ -298,16 +302,14 @@ main: {
     $cmd = "$UTILDIR/genome_gff3_to_chim_summary.pl --align_gff3 $mm2_intermediate_output_file_prefix.gff3 --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
     
     $pipeliner->add_commands(new Command($cmd, "chims_described.ok") );
-    
-    my $chim_candidates_fasta = "$chims_described_outfile.fasta";
-    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl $transcripts_file $chims_described_outfile > $chim_candidates_fasta";
+
+    # Extract candidate chimeric reads and create FI list
+    my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
+    my $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa";
+    my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
+    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl --trans_fasta $transcripts_file --chims_described $chims_described_outfile --max_exon_delta $MAX_EXON_DELTA --output_prefix $chim_candidates_output_prefix";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
-
-    # create FI list
-    my $FI_listing = "$chims_described_outfile.FI_list";
-    $cmd = "$UTILDIR/prep_FI_fusion_list.py $chims_described_outfile > $FI_listing";
-    $pipeliner->add_commands(new Command($cmd, "FI_listing.ok"));
-
+        
     # create FI contigs.
     $cmd = "$FI_UTILDIR/fusion_pair_to_mini_genome_join.pl "
         . " --fusions $FI_listing "

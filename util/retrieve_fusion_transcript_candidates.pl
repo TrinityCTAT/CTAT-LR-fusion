@@ -10,11 +10,70 @@ use Fasta_reader;
 use File::Basename;
 use Process_cmd;
 use Pipeliner;
+use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
-my $usage = "\n\n\tusage: $0 trans.fasta gmap.map.gff3.chims_described\n\n";
 
-my $trans_fasta = $ARGV[0] or die $usage;
-my $chims_described = $ARGV[1] or die $usage;
+my $usage = <<__EOUSAGE__;
+
+
+#######################################################################
+#
+# --trans_fasta <string>     transcripts.fasta for long reads
+#
+# --chims_described <string>   chims.descripbed file.
+#
+# --max_exon_delta <int>       maximum dist from ref exon boundary
+#
+# --output_prefix <string>    prefix name for output files (prefix).transcripts.fa and (prefix).FI_listing
+#
+#######################################################################
+
+
+__EOUSAGE__
+
+    ;
+
+
+
+
+
+my $trans_fasta;
+my $chims_described;
+my $MAX_EXON_DELTA;
+my $help_flag;
+my $output_prefix;
+
+&GetOptions ( 'help|h' => \$help_flag,
+	      'trans_fasta=s' => \$trans_fasta,
+	      'chims_described=s' => \$chims_described,
+	      'max_exon_delta=i' => \$MAX_EXON_DELTA,
+	      'output_prefix=s' => \$output_prefix,
+    );
+
+if ($help_flag) {
+    die $usage;
+}
+
+unless ($trans_fasta) {
+    print STDERR "\n\nERROR - must specify --trans_fasta <string> \n";
+    die $usage;
+}
+
+unless ($chims_described) {
+    print STDERR "\n\nERROR - must specify --chims_desacribed <string>\n";
+    die $usage;
+}
+
+unless($output_prefix) {
+    print STDERR "\n\nERROR - must specify --output_prefix <string>\n";
+    die $usage;
+}
+
+
+unless (defined($MAX_EXON_DELTA)) {
+    print STDERR " - must specify --max_exon_delta <int>\n";
+    die $usage;
+}
 
 $trans_fasta = &ensure_full_path($trans_fasta);
 $chims_described = &ensure_full_path($chims_described);
@@ -28,10 +87,13 @@ foreach my $file ($trans_fasta, $chims_described) {
 
 
 main: {
+
+    my %fusion_pairs;
+    my %chims = &parse_chims($chims_described, $MAX_EXON_DELTA, \%fusion_pairs);
+
     
-    my %chims = &parse_chims($chims_described);
-    
-    
+    open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
+        
     my $fasta_reader = new Fasta_reader($trans_fasta);
 
     while (my $seq_obj = $fasta_reader->next()) {
@@ -42,22 +104,30 @@ main: {
             
             my $sequence = $seq_obj->get_sequence();
             
-            print ">$accession\n$sequence\n";
+            print $ofh_fasta ">$accession\n$sequence\n";
             
             delete $chims{$accession};
 
         }
     }
+    close $ofh_fasta;
     
 
     if (%chims) {
         die "ERROR, missing sequences for accessions: " . keys %chims;
     }
 
+    # write the fusion listing
+    open(my $ofh_FI_list, ">$output_prefix.FI_listing") or die $!;
+    foreach my $fusion_pair (sort {$fusion_pairs{$b} <=> $fusion_pairs{$a}} keys %fusion_pairs) {
+	print $ofh_FI_list "$fusion_pair\t$fusion_pairs{$fusion_pair}\n";
+    }
+    close $ofh_FI_list;
+
+    print STDERR "-done. See files: $output_prefix.transcripts.fa and $output_prefix.FI_listing\n";
+
     exit(0);
         
-
-    
 }
         
 
@@ -65,7 +135,7 @@ main: {
 
 ####
 sub parse_chims {
-    my ($chims_described_file) = @_;
+    my ($chims_described_file, $MAX_EXON_DELTA, $fusion_pairs_href) = @_;
 
     my %chims;
     
@@ -86,12 +156,17 @@ sub parse_chims {
             $chrB_n_coordB,
             $fusion_name) = split(/;/, $fusion_info);
 
+
+	unless ($deltaA <= $MAX_EXON_DELTA && $deltaB <= $MAX_EXON_DELTA) { next; }
+	
         my $brkpt_range = join("-", sort ($trans_brkptA, $trans_brkptB));
         
         push (@{$chims{$trans_acc}}, { line => $line,
                                        brkpt_range => $brkpt_range,
               }
             );
+
+	$fusion_pairs_href->{$fusion_name}++;
     }
     close $fh;
 

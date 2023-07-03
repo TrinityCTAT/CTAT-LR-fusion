@@ -10,7 +10,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use Set::IntervalTree;
 
-my $min_per_id;
+my $min_per_id = 80;
 
 
 my $usage = <<__EOUSAGE__;
