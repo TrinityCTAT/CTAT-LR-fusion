@@ -92,16 +92,22 @@ task CTAT_LR_FUSION_TASK {
 
 
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv
   
-    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv 
-    
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv
+    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.abridged.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv 
+
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
 
     >>>
     
     output {
       File fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv"
+      File fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv"
+
       File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv"
+      File prelim_fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv"
+
       File fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
     }
     
