@@ -2,6 +2,8 @@
 
 set -ev
 
+rm -f ./*.simg
+
 VERSION=`cat VERSION.txt`
 
 cachebustdate=$(date +%s)
