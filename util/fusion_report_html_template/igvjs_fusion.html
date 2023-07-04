@@ -212,9 +212,9 @@
  	            ]
         };
 
-        if (data["__PREFIX__.illumina.junction_reads.bam"]) {
+        if (data["__PREFIX__.illumina.junction_reads.sorted.bam"]) {
                options.tracks.push({
-                        url: "__PREFIX__.illumina.junction_reads.bam",
+                        url: "__PREFIX__.illumina.junction_reads.sorted.bam",
                         label: "Junction_Reads_Alignments",
                         type: "bam",
                         height: 100,
@@ -224,9 +224,9 @@
                     });
         }
 
-        if (data["__PREFIX__.illumina.spanning_frags.bam"]) { 
+        if (data["__PREFIX__.illumina.spanning_frags.sorted.bam"]) { 
                 options.tracks.push({                   
-                        url: "__PREFIX__.illumina.spanning_frags.bam",
+                        url: "__PREFIX__.illumina.spanning_frags.sorted.bam",
                         type: "bam",
                         label: "Spanning_Reads_Alignments",
                         height: 100,
