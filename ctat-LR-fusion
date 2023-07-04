@@ -343,8 +343,16 @@ main: {
 
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl $intermediates_dir/LR-FI_targets.gtf  $intermediates_dir/LR-FI.mm2.gff3 $intermediates_dir/LR-FI.mm2.fusion_transcripts >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
-  
+
+    $pipeliner->run();
+
+    my $LR_total_count = &get_total_read_count("$transcripts_file.LR_read_count.txt");
+    
     my $fusions_filename = "$intermediates_dir/LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv";
+
+    $cmd = "$UTILDIR/incorporate_LR_FFPM.pl --fusions $fusions_filename --num_LR_total $LR_total_count --output_file $fusions_filename.w_LR_FFPM";
+    $pipeliner->add_commands(new Command($cmd, "added_LR_FFPM.ok"));
+    $fusions_filename = "$fusions_filename.w_LR_FFPM";
     
     ###############################################
     ## Add regular FI for short reads if available.
@@ -607,4 +615,23 @@ sub include_IGV_REPORTS {
     $pipeliner->add_commands(new Command($cmd, "fusion_reports_html.ok"));
     
         
+}
+
+####
+sub get_total_read_count {
+    my ($total_read_count_filename) = @_;
+
+    unless (-e $total_read_count_filename) {
+	die "Error, cannot locate file: $total_read_count_filename";
+    }
+    
+    open(my $fh, "$total_read_count_filename") or die "Error, cannot open file: $total_read_count_filename";
+    my $total_read_count = <$fh>;
+    chomp $total_read_count;
+
+    unless ($total_read_count =~ /^\d+$/) {
+	die "Error, not interpreting total read count [$total_read_count] as integer value";
+    }
+
+    return($total_read_count);
 }
