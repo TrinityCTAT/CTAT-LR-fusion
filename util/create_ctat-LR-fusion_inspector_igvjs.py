@@ -70,7 +70,7 @@ C_STR_INCLUDE_TRINITY_BED_GZ = file_prefix + ".gmap_trinity_GG.fusions.gff3.bed.
 dict_json = {"fusions" : [] }
 
 
-fusions_table = os.path.join( absolute_fusion_directory, "ctat-LR-fusion.fusion_predictions.tsv") 
+fusions_table = os.path.join( absolute_fusion_directory, "ctat-LR-fusion.fusion_predictions.abridged.tsv") 
 
 # Make fusion detail
 with open(fusions_table, "rt" ) as fh:
