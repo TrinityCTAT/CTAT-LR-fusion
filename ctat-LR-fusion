@@ -376,18 +376,26 @@ main: {
     $pipeliner->add_commands(new Command($cmd, "annotate_fusions.ok"));
     
     $fusions_filename = "$fusions_filename.wAnnot";
-    
+
+    ###############################
+    ## Preliminary fusion reporting
+    ###############################
+
     ## consider this the pre-filtered preliminary report
-    my $preliminary_report_file = "ctat-LR-fusion.fusion_predictions.preliminary.tsv";
+    my $preliminary_report_file = "$output_directory/ctat-LR-fusion.fusion_predictions.preliminary.tsv";
     $cmd = "cp $fusions_filename $preliminary_report_file";
     $pipeliner->add_commands(new Command($cmd, "cp_to_prelim.ok"));
     
-        
-    ###############################################
-    ## FusionFilter
-    ###############################################
+
+    ## add abridged version w/o all the evidence read names.
+    $cmd = "$FI_UTILDIR/column_exclusions.pl ctat-LR-fusion.fusion_predictions.preliminary.tsv "
+        . " LR_accessions,JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads "
+        . " > $output_directory/ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv";
+    $pipeliner->add_commands(new Command($cmd, "abridged_prelim_preds.ok"));
     
-        
+            
+    ## Fusion filtering
+            
     $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $fusions_filename --genome_lib_dir $genome_lib_dir";
     $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
         
@@ -427,6 +435,13 @@ main: {
     $cmd = "cp $fusions_filename $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
     $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
 
+
+    ## add abridged version w/o all the evidence read names.
+    $cmd = "$FI_UTILDIR/column_exclusions.pl $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
+        . " LR_accessions,JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads "
+        . " > $output_directory/ctat-LR-fusion.fusion_predictions.abridged.tsv";
+    $pipeliner->add_commands(new Command($cmd, "abridged_final_preds.ok"));
+    
     
     $pipeliner->run();
     
