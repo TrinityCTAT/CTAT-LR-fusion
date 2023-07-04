@@ -96,8 +96,11 @@ main: {
         
     my $fasta_reader = new Fasta_reader($trans_fasta);
 
+    my $read_counter = 0;
     while (my $seq_obj = $fasta_reader->next()) {
         
+        $read_counter += 1;
+
         my $accession = $seq_obj->get_accession();
         
         if (exists $chims{$accession}) {
@@ -120,9 +123,15 @@ main: {
     # write the fusion listing
     open(my $ofh_FI_list, ">$output_prefix.FI_listing") or die $!;
     foreach my $fusion_pair (sort {$fusion_pairs{$b} <=> $fusion_pairs{$a}} keys %fusion_pairs) {
-	print $ofh_FI_list "$fusion_pair\t$fusion_pairs{$fusion_pair}\n";
+        print $ofh_FI_list "$fusion_pair\t$fusion_pairs{$fusion_pair}\n";
     }
     close $ofh_FI_list;
+
+    # store the total number of reads.
+    open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
+    print $ofh "$read_counter\n";
+    close $ofh;
+    
 
     print STDERR "-done. See files: $output_prefix.transcripts.fa and $output_prefix.FI_listing\n";
 
