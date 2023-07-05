@@ -10,3 +10,6 @@
 [submodule "ctat-minimap2"]
 	path = ctat-minimap2
 	url = https://github.com/TrinityCTAT/ctat-minimap2.git
+[submodule "CTAT-LR-fusion.wiki"]
+	path = CTAT-LR-fusion.wiki
+	url = https://github.com/TrinityCTAT/CTAT-LR-fusion.wiki.git
