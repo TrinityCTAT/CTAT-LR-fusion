@@ -137,6 +137,8 @@ __EOUSAGE__
     ;
 
 
+my $top_candidates_only = 0; # hidden opt for troubleshooting igv-reports
+
 
 &GetOptions ( 'help|h' => \$help_flag,
 
@@ -163,7 +165,7 @@ __EOUSAGE__
               'prep_reference_only' => \$PREP_REFERENCE_ONLY,
               
               'max_intron_length=i' => \$max_intron_length,
-	      'max_exon_delta=i' => \$MAX_EXON_DELTA,
+              'max_exon_delta=i' => \$MAX_EXON_DELTA,
 	      
               'no_shrink_introns' => \$NO_SHRINK_INTRONS, # introns are shrunk by default
               'shrink_intron_max_length=i' => \$shrink_intron_max_length,
@@ -171,6 +173,8 @@ __EOUSAGE__
               'vis' => \$IGV_REPORTS,
 
               'no_abundance_filter' => \$NO_ABUNDANCE_FILTER,
+
+              'top_candidates_only=i' => \$top_candidates_only,
 
 );
 
@@ -319,6 +323,10 @@ main: {
 
     unless ($NO_SHRINK_INTRONS) {
         $cmd .= " --shrink_introns --max_intron_length $shrink_intron_max_length ";
+    }
+    
+    if ($top_candidates_only) {
+        $cmd .= " --top_candidates_only $top_candidates_only ";
     }
     
     $pipeliner->add_commands(new Command($cmd, "FI_contigs.ok"));
