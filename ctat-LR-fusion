@@ -58,6 +58,9 @@ my $IGV_REPORTS = 0;
 
 my $MAX_EXON_DELTA = 50;
 
+my $max_IGV_LR_per_fusion = 10;
+
+
 my $usage = <<__EOUSAGE__;
 
 ############################################################################################################
@@ -125,6 +128,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  --prep_reference                : prepares mininmap2 genome index
 #  --prep_reference_only           : only prepares genome index and then stops.
+#
+#  --max_IGV_LR_per_fusion <int>   : for the --vis, select a max number of LR per fusion for the html. (default: $max_IGV_LR_per_fusion)
+#                                          (more reads means longer browser load times)
 #
 #  --version                             report version ($VERSION)
 #
@@ -463,7 +469,7 @@ main: {
     
 
     if ($IGV_REPORTS) {
-        &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf);
+        &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion);
         $pipeliner->run();
     }
     
@@ -510,7 +516,7 @@ sub prep_minimap2_reference {
 
 ####
 sub include_IGV_REPORTS {
-    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf) = @_;
+    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_file, $max_IGV_LR_per_fusion) = @_;
     
     my $igv_prep_dir = "$intermediates_dir/IGV_prep";
     if (! -d $igv_prep_dir) {
@@ -534,7 +540,10 @@ sub include_IGV_REPORTS {
     
     
     ## get the long read alignments
-    $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.sam -T $FI_contigs_file -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";
+    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam  $intermediates_dir/LR-FI.mm2.sam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
+    $pipeliner->add_commands(new Command($cmd, "IGV_select_max_LR_per_fusion.ok"));
+    
+    $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.bam.ok"));
 
     
