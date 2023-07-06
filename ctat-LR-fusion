@@ -474,7 +474,7 @@ main: {
 
 
     if ($extract_fusion_LR_fasta) {
-	$cmd = "$FI_UTILDIR/extract_fusion_evidence_reads.pl "
+	$cmd = "$UTILDIR/extract_fusion_evidence_reads.pl "
 	    . " --fusions $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
 	    . " --reads_fasta $chim_candidates_fasta "
 	    . " --reads_output $extract_fusion_LR_fasta";
