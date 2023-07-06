@@ -282,16 +282,17 @@ main: {
         my $cmd = "gunzip -c $transcripts_file > $uncompressed_transcripts_file";
         $pipeliner->add_commands(new Command($cmd, "gunzip_transcripts.ok"));
         $transcripts_file = "$uncompressed_transcripts_file";
-        
-        if ($uncompressed_transcripts_file =~ /(fastq|fq)$/i) {
-            # convert from fastq to fasta
-            $cmd = "seqtk seq -a $uncompressed_transcripts_file > $uncompressed_transcripts_file.fasta";
-            $pipeliner->add_commands(new Command($cmd, "fastq_to_fasta_seqtk.ok"));
-
-            $transcripts_file = "$uncompressed_transcripts_file.fasta";
-        }
     }
+     
+    if ($transcripts_file =~ /(fastq|fq)$/i) {
+        # convert from fastq to fasta
+        my $cmd = "seqtk seq -a $transcripts_file > $transcripts_file.fasta";
+        $pipeliner->add_commands(new Command($cmd, "fastq_to_fasta_seqtk.ok"));
 
+        $transcripts_file = "$transcripts_file.fasta";
+    }
+    
+    
     
     ####################################################
     # run minimap2 to identify potential fusion transcripts

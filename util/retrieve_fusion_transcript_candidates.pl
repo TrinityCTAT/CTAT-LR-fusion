@@ -11,7 +11,7 @@ use File::Basename;
 use Process_cmd;
 use Pipeliner;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
-
+use Data::Dumper;
 
 my $usage = <<__EOUSAGE__;
 
@@ -117,7 +117,7 @@ main: {
     
 
     if (%chims) {
-        die "ERROR, missing sequences for accessions: " . keys %chims;
+        die "ERROR, missing sequences for reads: " . Dumper(\%chims);
     }
 
     # write the fusion listing
@@ -175,7 +175,7 @@ sub parse_chims {
               }
             );
 
-	$fusion_pairs_href->{$fusion_name}++;
+        $fusion_pairs_href->{$fusion_name}++;
     }
     close $fh;
 
