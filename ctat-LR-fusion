@@ -132,6 +132,10 @@ my $usage = <<__EOUSAGE__;
 #  --max_IGV_LR_per_fusion <int>   : for the --vis, select a max number of LR per fusion for the html. (default: $max_IGV_LR_per_fusion)
 #                                          (more reads means longer browser load times)
 #
+#  --extract_fusion_LR_fasta <string>  : extract the long reads that serve as evidence to the fusion and write them to the corresponding file.  
+#                                        The fusion name is prefixed to the read name like so:  fusion_name|read_name
+#
+#
 #  --version                             report version ($VERSION)
 #
 ##############################################################################################################
@@ -144,7 +148,7 @@ __EOUSAGE__
 
 
 my $top_candidates_only = 0; # hidden opt for troubleshooting igv-reports
-
+my $extract_fusion_LR_fasta = "";
 
 &GetOptions ( 'help|h' => \$help_flag,
 
@@ -182,6 +186,8 @@ my $top_candidates_only = 0; # hidden opt for troubleshooting igv-reports
 
               'top_candidates_only=i' => \$top_candidates_only,
 
+	      'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
+	      
 );
 
 
@@ -465,10 +471,23 @@ main: {
         . " > $output_directory/ctat-LR-fusion.fusion_predictions.abridged.tsv";
     $pipeliner->add_commands(new Command($cmd, "abridged_final_preds.ok"));
     
+
+
+    if ($extract_fusion_LR_fasta) {
+	$cmd = "$FI_UTILDIR/extract_fusion_evidence_reads.pl "
+	    . " --fusions $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
+	    . " --reads_fasta $chim_candidates_fasta "
+	    . " --reads_output $extract_fusion_LR_fasta";
+	$pipeliner->add_commands(new Command($cmd, "extract_fusion_reads.ok"));
+    }
+    
     
     $pipeliner->run();
     
+    
 
+
+    
     if ($IGV_REPORTS) {
         &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion);
         $pipeliner->run();
