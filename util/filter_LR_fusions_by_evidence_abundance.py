@@ -70,9 +70,9 @@ def main():
         # filter just based on long reads
         data_filtered = data[
             
-              (  (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= 1) )
+              (  (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
                   |
-                (data.num_LR >= 3)
+                (data.num_LR >= min_LR_novel_junction_support)
             ]
     
     
