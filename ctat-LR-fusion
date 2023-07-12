@@ -305,10 +305,10 @@ main: {
 
     my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
     #my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only --only_chimeric -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
-    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    #my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric --junc-bed $MM2_splice_file -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
 
     #my $cmd = "minimap2 -ax splice --junc-bed $MM2_splice_file -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
-    #my $cmd = "minimap2 -ax splice -uf --junc-bed $MM2_splice_file -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
     #my $cmd = "minimap2 -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
 
     $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
@@ -362,8 +362,8 @@ main: {
     
     ## run mm2 using the chimeric candidates:
     #$cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
-    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -ax splice -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
-    #$cmd = "minimap2 -ax splice -uf --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    #$cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -ax splice -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -ax splice --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
     #$cmd = "minimap2 -ax splice -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
 
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
