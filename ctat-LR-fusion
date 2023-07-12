@@ -20,16 +20,16 @@ my $output_directory = "ctat_LR_fusion_outdir";
 
 #  long read filters
 my $MIN_NUM_LR = 1;
-my $MIN_LR_NOVEL = 2;
+my $MIN_LR_NOVEL = 1;
 
 
 # short read filters
 my $MIN_J = 1;
 my $MIN_SUM_JS = 1;
-my $MIN_NOVEL_J = 3;
+my $MIN_NOVEL_J = 1;
 
 
-my $MIN_PER_ID = 90;
+my $MIN_PER_ID = 70;
 
 my $genome_lib_dir = $ENV{CTAT_GENOME_LIB} || "";
 
@@ -299,13 +299,18 @@ main: {
     }
     
     
-    
     ####################################################
     # run minimap2 to identify potential fusion transcripts
     ####################################################
 
     my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
-    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only --only_chimeric -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    #my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only --only_chimeric -ax splice --junc-bed $MM2_splice_file -O6,24 -B4 -L -t $CPU -cs -ub -G $max_intron_length $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+
+    #my $cmd = "minimap2 -ax splice --junc-bed $MM2_splice_file -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    #my $cmd = "minimap2 -ax splice -uf --junc-bed $MM2_splice_file -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    #my $cmd = "minimap2 -ax splice -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+
     $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl  $mm2_intermediate_output_file_prefix.sam >  $mm2_intermediate_output_file_prefix.gff3";
@@ -318,7 +323,7 @@ main: {
     my $chims_described_outfile = "$mm2_intermediate_output_file_prefix.chims_described";
     $cmd = "$UTILDIR/genome_gff3_to_chim_summary.pl --align_gff3 $mm2_intermediate_output_file_prefix.gff3 --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
     
-    $pipeliner->add_commands(new Command($cmd, "chims_described.ok") );
+    $pipeliner->add_commands(new Command($cmd, "chims_described.ok"));
 
     # Extract candidate chimeric reads and create FI list
     my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
@@ -356,7 +361,11 @@ main: {
     &prep_minimap2_reference($FI_contigs_file, $intermediates_dir, $FI_mm2, $FI_splice_bed, $FI_annots_gtf);
     
     ## run mm2 using the chimeric candidates:
-    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    #$cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only -ax splice --junc-bed $FI_splice_bed -O6,24 -B4 -L -t $CPU -cs -ub $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 -ax splice -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    #$cmd = "minimap2 -ax splice -uf --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    #$cmd = "minimap2 -ax splice -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
     
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl $intermediates_dir/LR-FI.mm2.sam > $intermediates_dir/LR-FI.mm2.gff3";
