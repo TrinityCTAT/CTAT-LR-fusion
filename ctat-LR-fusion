@@ -331,7 +331,15 @@ main: {
     my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl --trans_fasta $transcripts_file --chims_described $chims_described_outfile --max_exon_delta $MAX_EXON_DELTA --output_prefix $chim_candidates_output_prefix";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
-        
+
+    $pipeliner->run();
+
+    if (-e $FI_listing && (-s $FI_listing == 0)) {
+        print STDERR "Sorry, no chimeric candidates to pursue. Stopping here.\n";
+        exit(0);
+    }
+    
+    
     # create FI contigs.
     $cmd = "$FI_UTILDIR/fusion_pair_to_mini_genome_join.pl "
         . " --fusions $FI_listing "
