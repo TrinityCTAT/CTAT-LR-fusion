@@ -141,10 +141,6 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN pip install pysam
 
-
-#######
-## minimap2-Fusion
-
 RUN apt-get install -y git && apt-get clean
 
 WORKDIR $SRC
@@ -158,8 +154,8 @@ RUN pip install pandas
 
 RUN pip install requests igv-reports
 
-ENV ctat_LR_fusion_version 0.6.0-dev
-ENV CTAT_LR_FUSION_CO 544043b08eb6ce9d8820e6cdf5e255ff3c82c267
+ENV ctat_LR_fusion_version 0.6.0
+ENV CTAT_LR_FUSION_CO 9fb85808fe7ea965c3a1df8871062d63dcb8057d
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
