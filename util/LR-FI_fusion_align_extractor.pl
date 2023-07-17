@@ -325,7 +325,14 @@ sub report_LR_fusions {
               } );
     }
 
+
+    @fusion_structs = &merge_identical_breakpoints(@fusion_structs);
+    
+
     @fusion_structs = reverse sort {$a->{num_LR} <=> $b->{num_LR}} @fusion_structs;
+
+    
+    
 
     
     print $LR_breakpoint_summary_ofh join("\t", "#FusionName", "num_LR", 
@@ -491,3 +498,33 @@ sub infer_genome_breakpoint_from_local_coord {
     }
     
 }
+
+
+####
+sub merge_identical_breakpoints {
+    my (@fusion_structs) = @_;
+
+    my %fusion_token_to_consolidated_fusions;
+
+    foreach my $fusion (@fusion_structs) {
+        my $token = join("$;", 
+                         $fusion->{fusion_name},
+                         $fusion->{LeftLocalBreakpoint},
+                         $fusion->{RightLocalBreakpoint},
+                         $fusion->{LeftBreakpoint},
+                         $fusion->{RightBreakpoint},
+                         $fusion->{SpliceType});
+
+        if (my $existing_fusion_struct = $fusion_token_to_consolidated_fusions{$token}) {
+            # add info to existing fusion:
+            $existing_fusion_struct->{num_LR} += $fusion->{num_LR};
+            push (@{$existing_fusion_struct->{LR_accessions}}, @{$fusion->{LR_accessions}});
+        }
+        else {
+            $fusion_token_to_consolidated_fusions{$token} = $fusion;
+        }
+    }
+    
+    return (values %fusion_token_to_consolidated_fusions);
+}
+

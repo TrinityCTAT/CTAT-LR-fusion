@@ -20,14 +20,13 @@ my $output_directory = "ctat_LR_fusion_outdir";
 
 #  long read filters
 my $MIN_NUM_LR = 1;
-my $MIN_LR_NOVEL = 1;
+my $MIN_LR_NOVEL = 2;
 
 
 # short read filters
 my $MIN_J = 1;
 my $MIN_SUM_JS = 1;
 my $MIN_NOVEL_J = 1;
-
 
 my $MIN_PER_ID = 70;
 
