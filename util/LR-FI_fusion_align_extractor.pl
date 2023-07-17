@@ -60,6 +60,9 @@ unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP
 
 
 
+my $DONOR_TYPE = "DONOR";
+my $ACCEPTOR_TYPE = "ACCEPTOR";
+my $NA_TYPE = "NA";
 
 main: {
     
@@ -224,14 +227,14 @@ sub parse_FI_gtf_filename {
                                                            coord => $orig_end5,
                                                            orient => $orig_orient,
                                                            contig_coord => $lend,
-                                                           splice_junc => 0, # update later
+                                                           splice_junc => $NA_TYPE, # update later
         };
 
         $orig_coord_info_href->{$scaffold_id}->{$rend} = { chrom => $orig_chr,
                                                            coord => $orig_end3,
                                                            orient => $orig_orient,
                                                            contig_coord => $rend,
-                                                           splice_junc => 0, # update later
+                                                           splice_junc => $NA_TYPE, # update later
         };
         
         
@@ -254,8 +257,8 @@ sub parse_FI_gtf_filename {
                 my $left_junc = $coordsets[$i]->[1];
                 my $right_junc = $coordsets[$i+1]->[0];
                 
-                $orig_coord_info_href->{$scaffold_id}->{$left_junc}->{splice_junc} = 1;
-                $orig_coord_info_href->{$scaffold_id}->{$right_junc}->{splice_junc} = 1;
+                $orig_coord_info_href->{$scaffold_id}->{$left_junc}->{splice_junc} = $DONOR_TYPE;
+                $orig_coord_info_href->{$scaffold_id}->{$right_junc}->{splice_junc} = $ACCEPTOR_TYPE;
             }
         }
     }
@@ -333,17 +336,19 @@ sub report_LR_fusions {
         my $scaffold_coordinate_mappings_aref = $scaffold_to_orig_coords_href->{$scaffold};
 
         my ($adj_break_lend, $left_genome_breakpoint, $left_ref_splice_mapping) = &infer_genome_breakpoint_from_local_coord($break_lend, 
-                                                                                                           $scaffold_orig_coord_info_href, 
-                                                                                                           $scaffold_coordinate_mappings_aref,
-                                                                                                           $SNAP_dist);
+                                                                                                                            $scaffold_orig_coord_info_href, 
+                                                                                                                            $scaffold_coordinate_mappings_aref,
+                                                                                                                            $DONOR_TYPE,
+                                                                                                                            $SNAP_dist);
         
         # in case it snapped:
         $break_lend = $adj_break_lend;
 
         my ($adj_break_rend, $right_genome_breakpoint, $right_ref_splice_mapping)  = &infer_genome_breakpoint_from_local_coord($break_rend, 
-                                                                                                              $scaffold_orig_coord_info_href, 
-                                                                                                              $scaffold_coordinate_mappings_aref,
-                                                                                                              $SNAP_dist);
+                                                                                                                               $scaffold_orig_coord_info_href, 
+                                                                                                                               $scaffold_coordinate_mappings_aref,
+                                                                                                                               $ACCEPTOR_TYPE,
+                                                                                                                               $SNAP_dist);
         
         # in case it snapped:
         $break_rend = $adj_break_rend;
@@ -491,10 +496,10 @@ sub organize_original_coordinate_info {
 
 
 sub infer_genome_breakpoint_from_local_coord {
-    my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref, $SNAP_dist) = @_;
+    my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref, $SPLICE_SITE_TYPE, $SNAP_dist) = @_;
 
     my $struct = $scaffold_orig_coord_info_href->{$break_coord};
-    if (defined($struct) && $struct->{splice_junc}) {
+    if (defined($struct) && $struct->{splice_junc} eq $SPLICE_SITE_TYPE) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
         
         #print STDERR "-no snap, found ref splice match for $break_coord\n";
@@ -511,9 +516,9 @@ sub infer_genome_breakpoint_from_local_coord {
             
             if ( (! defined($smallest_delta)) 
                  || 
-                 ($closest_struct->{splice_junc} == 0 && $struct->{splice_junc} == 1) # always prefer splice junc
+                 ($closest_struct->{splice_junc} ne $SPLICE_SITE_TYPE && $struct->{splice_junc} eq $SPLICE_SITE_TYPE) # always prefer matching splice junc type
                  ||
-                 ($closest_struct->{splice_junc} == $struct->{splice_junc} && abs($delta) < abs($smallest_delta) ) # same splice type but closer.
+                 ($closest_struct->{splice_junc} eq $struct->{splice_junc} && abs($delta) < abs($smallest_delta) ) # same splice type but closer.
                 ) {
                 
                 $smallest_delta = $delta;
@@ -524,7 +529,7 @@ sub infer_genome_breakpoint_from_local_coord {
         my $chrom = $closest_struct->{chrom};
         my $orient = $closest_struct->{orient};
         my $coord;
-        if (abs($smallest_delta) <= $SNAP_dist && $closest_struct->{splice_junc}) {
+        if (abs($smallest_delta) <= $SNAP_dist && $closest_struct->{splice_junc} eq $SPLICE_SITE_TYPE) {
             $coord = $closest_struct->{coord};
             my $adj_break = $closest_struct->{contig_coord};
             
