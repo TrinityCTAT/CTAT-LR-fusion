@@ -415,12 +415,14 @@ main: {
     
         $pipeliner->add_commands(new Command($cmd, "FI_short_reads.ok"));
     
-        $fusions_filename = "$intermediates_dir/mm2_and_FI_fusions_merged.tsv";
+        my $merged_fusions_filename = "$intermediates_dir/mm2_and_FI_fusions_merged.tsv";
 
         # merge FI with the mm2 fusions
-        $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions $intermediates_dir/LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $fusions_filename";
+        $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions $fusions_filename  --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $merged_fusions_filename";
         $pipeliner->add_commands(new Command($cmd, "merge_mm2_FI.ok"));
-        
+
+	$fusions_filename = $merged_fusions_filename;
+	
     }
 
 
