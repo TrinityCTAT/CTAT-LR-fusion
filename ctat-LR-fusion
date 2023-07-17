@@ -11,7 +11,7 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v0.5.0-dev";
+my $VERSION = "v0.6.0-dev";
 
 
 my $CPU = 4;
