@@ -162,6 +162,8 @@ sub parse_FI_gtf_filename {
 
     my %scaff_to_gene_to_coords;
 
+    my %scaff_to_trans_to_coords;
+
     open (my $fh, $FI_gtf_filename) or die "Error, cannot open file $FI_gtf_filename";
     while (<$fh>) {
         chomp;
@@ -186,8 +188,21 @@ sub parse_FI_gtf_filename {
             die "Error, not able to extract gene_name or FI_gene_label value from $info";
         }
         
+
+        my $transcript_id;
+        if ($info =~ /transcript_id \"([^\"]+)\"/) {
+            $transcript_id = $1;
+        }
+        else {
+            die "Error, cannot extract transcript id from $info";
+        }
+        
+        
+
         my ($lend, $rend) = ($x[3], $x[4]);
         push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
+        
+        push (@{$scaff_to_trans_to_coords{$scaffold_id}->{$transcript_id}}, [$lend, $rend]);
         
         
         my $strand = $x[6];
@@ -209,12 +224,14 @@ sub parse_FI_gtf_filename {
                                                            coord => $orig_end5,
                                                            orient => $orig_orient,
                                                            contig_coord => $lend,
+                                                           splice_junc => 0, # update later
         };
 
         $orig_coord_info_href->{$scaffold_id}->{$rend} = { chrom => $orig_chr,
                                                            coord => $orig_end3,
                                                            orient => $orig_orient,
                                                            contig_coord => $rend,
+                                                           splice_junc => 0, # update later
         };
         
         
@@ -222,6 +239,26 @@ sub parse_FI_gtf_filename {
     }
     close $fh;
 
+    
+    ###############################
+    ## Update splice junction info:
+    
+    foreach my $scaffold_id (keys %scaff_to_trans_to_coords) {
+        
+        foreach my $transcript_id (keys %{$scaff_to_trans_to_coords{$scaffold_id}}) {
+            
+            my @coordsets = sort {$a->[0]<=>$b->[0]} @{$scaff_to_trans_to_coords{$scaffold_id}->{$transcript_id}};
+            
+            # assign splice juncs:
+            for (my $i = 0; $i < $#coordsets; $i++) {
+                my $left_junc = $coordsets[$i]->[1];
+                my $right_junc = $coordsets[$i+1]->[0];
+                
+                $orig_coord_info_href->{$scaffold_id}->{$left_junc}->{splice_junc} = 1;
+                $orig_coord_info_href->{$scaffold_id}->{$right_junc}->{splice_junc} = 1;
+            }
+        }
+    }
     
     return(%scaff_to_gene_to_coords);
 }
@@ -456,9 +493,11 @@ sub organize_original_coordinate_info {
 sub infer_genome_breakpoint_from_local_coord {
     my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref, $SNAP_dist) = @_;
 
-    if (my $struct = $scaffold_orig_coord_info_href->{$break_coord}) {
+    my $struct = $scaffold_orig_coord_info_href->{$break_coord};
+    if (defined($struct) && $struct->{splice_junc}) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
-
+        
+        print STDERR "-no snap, found ref splice match for $break_coord\n";
         return($break_coord, "$chrom:$coord:$orient", 1);
     }
     else {
@@ -469,7 +508,14 @@ sub infer_genome_breakpoint_from_local_coord {
         foreach my $struct (@$scaffold_coordinate_mappings_aref) {
             my $contig_coord = $struct->{contig_coord};
             my $delta = $break_coord - $contig_coord;
-            if ( (! defined($smallest_delta)) || abs($delta) < abs($smallest_delta)) {
+            
+            if ( (! defined($smallest_delta)) 
+                 || 
+                 ($closest_struct->{splice_junc} == 0 && $struct->{splice_junc} == 1) # always prefer splice junc
+                 ||
+                 ($closest_struct->{splice_junc} == $struct->{splice_junc} && abs($delta) < abs($smallest_delta) ) # same splice type but closer.
+                ) {
+                
                 $smallest_delta = $delta;
                 $closest_struct = $struct;
             }
@@ -478,9 +524,12 @@ sub infer_genome_breakpoint_from_local_coord {
         my $chrom = $closest_struct->{chrom};
         my $orient = $closest_struct->{orient};
         my $coord;
-        if (abs($smallest_delta) <= $SNAP_dist) {
+        if (abs($smallest_delta) <= $SNAP_dist && $closest_struct->{splice_junc}) {
             $coord = $closest_struct->{coord};
             my $adj_break = $closest_struct->{contig_coord};
+            
+            print STDERR "Snapping $break_coord -> $adj_break\n";
+            
             return($adj_break, "$chrom:$coord:$orient", 1); # now at splice site
         }
         else {
@@ -490,9 +539,11 @@ sub infer_genome_breakpoint_from_local_coord {
             else {
                 $coord = $closest_struct->{coord} - $smallest_delta;
             }
+            print STDERR "No snap, here\'s delta info: $chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
+
             return($break_coord, "$chrom:$coord:$orient", 0);
         }
-        #print STDERR "$chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
+        
         
         
     }
@@ -516,6 +567,9 @@ sub merge_identical_breakpoints {
                          $fusion->{SpliceType});
 
         if (my $existing_fusion_struct = $fusion_token_to_consolidated_fusions{$token}) {
+
+            print STDERR "-merging fusion structs for " . Dumper($fusion) . " with " . Dumper($existing_fusion_struct);
+            
             # add info to existing fusion:
             $existing_fusion_struct->{num_LR} += $fusion->{num_LR};
             push (@{$existing_fusion_struct->{LR_accessions}}, @{$fusion->{LR_accessions}});

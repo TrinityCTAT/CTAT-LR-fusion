@@ -57,7 +57,7 @@ my $IGV_REPORTS = 0;
 
 my $MAX_EXON_DELTA = 50;
 
-my $max_IGV_LR_per_fusion = 10;
+my $max_IGV_LR_per_fusion = 100;
 
 my $SNAP_dist = 3;
 
