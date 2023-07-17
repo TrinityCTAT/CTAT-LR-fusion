@@ -159,7 +159,7 @@ RUN pip install pandas
 RUN pip install requests igv-reports
 
 ENV ctat_LR_fusion_version 0.6.0-dev
-ENV CTAT_LR_FUSION_CO 690b3b3ba0686f54a2f5ed566947b4127d602ce4
+ENV CTAT_LR_FUSION_CO 544043b08eb6ce9d8820e6cdf5e255ff3c82c267
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
