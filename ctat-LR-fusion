@@ -61,6 +61,8 @@ my $max_IGV_LR_per_fusion = 100;
 
 my $SNAP_dist = 3;
 
+my $MIN_FRACTION_DOMINANT_ISO = 0.05;
+
 my $usage = <<__EOUSAGE__;
 
 ############################################################################################################
@@ -111,6 +113,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_novel_junction_support <int>   :minimum number of junction reads required for novel (non-reference) exon-exon junction support.
 #                                        (default: $MIN_NOVEL_J)
+#
+#  --min_frac_dom_iso_expr <float>     : minimum expression of dominant isoform (default: $MIN_FRACTION_DOMINANT_ISO)
 #
 #  #############
 #  Misc options:
@@ -179,6 +183,8 @@ my $extract_fusion_LR_fasta = "";
               'max_intron_length=i' => \$max_intron_length,
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
 	      
+              'min_frac_dom_iso_expr=f' => \$MIN_FRACTION_DOMINANT_ISO,
+              
               'snap_dist=i' => \$SNAP_dist,
               
               'no_shrink_introns' => \$NO_SHRINK_INTRONS, # introns are shrunk by default
@@ -190,7 +196,7 @@ my $extract_fusion_LR_fasta = "";
 
               'top_candidates_only=i' => \$top_candidates_only,
 
-	      'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
+              'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
 	      
 );
 
@@ -477,7 +483,19 @@ main: {
         $fusions_filename = "$fusions_filename.filt_by_min_reads";
 
     }
-    
+
+    if ($MIN_FRACTION_DOMINANT_ISO > 0) {
+        
+        $cmd = "$UTILDIR/filter_low_pct_dom_iso.py "
+            . " --min_frac_dom_iso $MIN_FRACTION_DOMINANT_ISO "
+            . " --fusions_input $fusions_filename "
+            . " --filtered_fusions_output $fusions_filename.filt_by_min_dom_iso_frac";
+        
+        $pipeliner->add_commands(new Command($cmd, "filter_by_min_dom_iso_frac.ok"));
+
+        $fusions_filename = "$fusions_filename.filt_by_min_dom_iso_frac";
+    }
+        
     
     ############################################
     # Copy final fusions file as the deliverable:
