@@ -37,7 +37,7 @@ def main():
 
         return(group_df)
     
-    data = data.groupby('#FusionName').apply(filter_frac_dom_iso).reset_index()
+    data = data.groupby('#FusionName').apply(filter_frac_dom_iso).reset_index(drop=True)
 
     filtered_out_fusions = data[ ~ data['above_frac_dom_iso' ] ]
 
