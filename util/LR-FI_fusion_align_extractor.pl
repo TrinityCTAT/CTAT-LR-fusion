@@ -497,7 +497,7 @@ sub infer_genome_breakpoint_from_local_coord {
     if (defined($struct) && $struct->{splice_junc}) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
         
-        print STDERR "-no snap, found ref splice match for $break_coord\n";
+        #print STDERR "-no snap, found ref splice match for $break_coord\n";
         return($break_coord, "$chrom:$coord:$orient", 1);
     }
     else {
@@ -528,7 +528,7 @@ sub infer_genome_breakpoint_from_local_coord {
             $coord = $closest_struct->{coord};
             my $adj_break = $closest_struct->{contig_coord};
             
-            print STDERR "Snapping $break_coord -> $adj_break\n";
+            #print STDERR "Snapping $break_coord -> $adj_break\n";
             
             return($adj_break, "$chrom:$coord:$orient", 1); # now at splice site
         }
@@ -539,7 +539,7 @@ sub infer_genome_breakpoint_from_local_coord {
             else {
                 $coord = $closest_struct->{coord} - $smallest_delta;
             }
-            print STDERR "No snap, here\'s delta info: $chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
+            #print STDERR "No snap, here\'s delta info: $chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
 
             return($break_coord, "$chrom:$coord:$orient", 0);
         }
@@ -568,7 +568,7 @@ sub merge_identical_breakpoints {
 
         if (my $existing_fusion_struct = $fusion_token_to_consolidated_fusions{$token}) {
 
-            print STDERR "-merging fusion structs for " . Dumper($fusion) . " with " . Dumper($existing_fusion_struct);
+            #print STDERR "-merging fusion structs for " . Dumper($fusion) . " with " . Dumper($existing_fusion_struct);
             
             # add info to existing fusion:
             $existing_fusion_struct->{num_LR} += $fusion->{num_LR};
