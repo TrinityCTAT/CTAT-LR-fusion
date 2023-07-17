@@ -60,6 +60,7 @@ my $MAX_EXON_DELTA = 50;
 
 my $max_IGV_LR_per_fusion = 10;
 
+my $SNAP_dist = 3;
 
 my $usage = <<__EOUSAGE__;
 
@@ -122,6 +123,8 @@ my $usage = <<__EOUSAGE__;
 #  --shrink_intron_length <int>    : length for shrinking long introns to during the FusionInspector-style alignments. default($shrink_intron_max_length)
 #  --no_shrink_introns             : disable intron shrinking during FusionInspector-style alignments.
 #
+#  --snap_dist <int>               :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
+#
 #  --no_annot_filter               : disable filtering outputs based on fusion annotations.
 #
 #  --no_abundance_filter           : disable filtering based on read support
@@ -177,6 +180,8 @@ my $extract_fusion_LR_fasta = "";
               'max_intron_length=i' => \$max_intron_length,
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
 	      
+              'snap_dist=i' => \$SNAP_dist,
+              
               'no_shrink_introns' => \$NO_SHRINK_INTRONS, # introns are shrunk by default
               'shrink_intron_max_length=i' => \$shrink_intron_max_length,
               
@@ -373,8 +378,13 @@ main: {
     
     $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl $intermediates_dir/LR-FI.mm2.sam > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
-
-    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl $intermediates_dir/LR-FI_targets.gtf  $intermediates_dir/LR-FI.mm2.gff3 $intermediates_dir/LR-FI.mm2.fusion_transcripts >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";
+    
+    $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl "
+        . " --FI_gtf $intermediates_dir/LR-FI_targets.gtf "
+        . " --LR_gff3 $intermediates_dir/LR-FI.mm2.gff3 "
+        . " --output_prefix $intermediates_dir/LR-FI.mm2.fusion_transcripts "
+        . " --snap_dist $SNAP_dist "
+        . " >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
 
     $pipeliner->run();

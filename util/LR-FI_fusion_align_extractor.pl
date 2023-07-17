@@ -9,24 +9,69 @@ use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
 use Data::Dumper;
+use List::Util qw(min max);
+use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
-my $usage = "\n\n\tusage: $0 genePairContig.gtf LR_mm2.gff3 output_prefix\n\n\n";
 
-my $gtf_file = $ARGV[0] or die $usage;
-my $gff3_align_file = $ARGV[1] or die $usage;
-my $output_prefix = $ARGV[2] or die $usage;
+
+
+my $usage = <<__EOUSAGE__;
+
+###########################################################
+#
+#  --FI_gtf <string>        :  FI contigs gtf filename
+#
+#  --LR_gff3 <string>       :  LR alignments in gff3 format.
+#
+#  --output_prefix <string> :  prefix for output files
+#
+#  --snap_dist <int>        :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
+#
+###########################################################
+
+
+__EOUSAGE__
+
+    ;
+
+
+my $help_flag;
+my $FI_gtf_filename;
+my $LR_gff3_filename;
+my $output_prefix;
+my $SNAP_dist;
+
+
+
+&GetOptions ( 'help|h' => \$help_flag,
+              'FI_gtf=s' => \$FI_gtf_filename,
+              'LR_gff3=s' => \$LR_gff3_filename,
+              'output_prefix=s' => \$output_prefix,
+              'snap_dist=i' => \$SNAP_dist,
+    );
+
+if ($help_flag) {
+    die $usage;
+}
+
+unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) ) {
+    die $usage;
+}
+
+
+
 
 main: {
     
     my %orig_coord_info;
-    my %scaffold_to_gene_coordsets = &parse_gtf_file($gtf_file, \%orig_coord_info);
+    my %scaffold_to_gene_coordsets = &parse_FI_gtf_filename($FI_gtf_filename, \%orig_coord_info);
     
     # organize original coordinate info
     my %scaffold_to_orig_coords = &organize_original_coordinate_info(\%orig_coord_info);
     
     #print STDERR Dumper(\%scaffold_to_gene_coordsets);
     
-    my %scaffold_to_LR_coords = &parse_gff3_file($gff3_align_file);
+    my %scaffold_to_LR_coords = &parse_LR_alignment_gff3_file($LR_gff3_filename);
     
     my %LR_fusion_trans_ids;
 
@@ -40,32 +85,33 @@ main: {
 
         my ($geneA_coords_href, $geneB_coords_href) = &get_gene_coords($scaffold, $scaffold_to_gene_coordsets{$scaffold});
  
-        #print "GeneA: " . Dumper($geneA_coords_href) 
-        #    . "GeneB: " . Dumper($geneB_coords_href);
+        my $geneA_max = max(keys %$geneA_coords_href);
+        my $geneB_min = min(keys %$geneB_coords_href);
         
-       
-        my @trin_accs = keys (%{$scaffold_to_LR_coords{$scaffold}});
-        foreach my $trin_acc (@trin_accs) {
-            my $trin_coords_href = $scaffold_to_LR_coords{$scaffold}->{$trin_acc};
+        unless (exists $scaffold_to_LR_coords{$scaffold}) { next; }
+
+        my @LR_accs = keys %{$scaffold_to_LR_coords{$scaffold}};
+        foreach my $LR_acc (@LR_accs) {
+            my @LR_coordsets = sort {$a->[0]<=>$b->[0]} @{$scaffold_to_LR_coords{$scaffold}->{$LR_acc}};
             
             # ignore singletons
-            if (scalar (keys %$trin_coords_href) < 4) { next; } # at least 2 sets of coordinates, indicating an intron
+            if (scalar(@LR_coordsets) < 2) { next; } # at least 2 sets of coordinates, indicating an intron
             
-            #print "LR: $trin_acc " . Dumper($trin_coords_href);
+            my $min_LR_coord = $LR_coordsets[0]->[0];
+            my $max_LR_coord = $LR_coordsets[$#LR_coordsets]->[1];
+            
 
-            if (&shared_coordinate($geneA_coords_href, $trin_coords_href)
-                &&
-                &shared_coordinate($geneB_coords_href, $trin_coords_href) ) {
-
-                my ($break_left, $break_right) = &get_breakpoint_coords($geneA_coords_href, $geneB_coords_href, $trin_coords_href);
-
-                $LR_fusion_trans_ids{$trin_acc} = "$scaffold:$break_left-$break_right";
+            if ($min_LR_coord < $geneA_max && $max_LR_coord > $geneB_min) { # spans both genes 
+                
+                my ($break_left, $break_right) = &get_breakpoint_coords(\@LR_coordsets, $geneA_max, $geneB_min);
+                
+                $LR_fusion_trans_ids{$LR_acc} = "$scaffold:$break_left-$break_right";
             }
 
         }
     }
 
-    &report_LR_fusions($gff3_align_file, \%LR_fusion_trans_ids, \%orig_coord_info, \%scaffold_to_orig_coords, $output_prefix);
+    &report_LR_fusions($LR_gff3_filename, \%LR_fusion_trans_ids, \%orig_coord_info, \%scaffold_to_orig_coords, $output_prefix);
     
     exit(0);
 }
@@ -111,12 +157,12 @@ sub get_gene_coords {
 
 
 ####
-sub parse_gtf_file {
-    my ($gtf_file, $orig_coord_info_href) = @_;
+sub parse_FI_gtf_filename {
+    my ($FI_gtf_filename, $orig_coord_info_href) = @_;
 
     my %scaff_to_gene_to_coords;
 
-    open (my $fh, $gtf_file) or die "Error, cannot open file $gtf_file";
+    open (my $fh, $FI_gtf_filename) or die "Error, cannot open file $FI_gtf_filename";
     while (<$fh>) {
         chomp;
         my @x = split(/\t/);
@@ -184,13 +230,13 @@ sub parse_gtf_file {
 
 
 ####
-sub parse_gff3_file {
-    my ($gff3_align_file) = @_;
+sub parse_LR_alignment_gff3_file {
+    my ($LR_gff3_filename) = @_;
 
     
     my %scaffold_to_trans_coords;
     
-    open (my $fh, $gff3_align_file) or die $!;
+    open (my $fh, $LR_gff3_filename) or die $!;
     while (<$fh>) {
         if (/^\#/) { next; } # comment line
         unless (/\w/) { next; }
@@ -211,8 +257,8 @@ sub parse_gff3_file {
             die "Error, cannot find LR ID from $info";
         }
 
-        $scaffold_to_trans_coords{$scaff}->{$LR_id}->{$lend} = 1;
-        $scaffold_to_trans_coords{$scaff}->{$LR_id}->{$rend} = 1;
+        push (@{$scaffold_to_trans_coords{$scaff}->{$LR_id}}, [$lend, $rend]);
+        
 
     }
     close $fh;
@@ -223,7 +269,7 @@ sub parse_gff3_file {
 
 ####
 sub report_LR_fusions {
-    my ($gff3_align_file, $LR_ids_href, $orig_coord_info_href, $scaffold_to_orig_coords_href, $output_prefix) = @_;
+    my ($LR_gff3_filename, $LR_ids_href, $orig_coord_info_href, $scaffold_to_orig_coords_href, $output_prefix) = @_;
     
     my $chimeric_trans_gff3_filename = "$output_prefix.gff3";
     open(my $chimeric_trans_gff3_ofh, ">$chimeric_trans_gff3_filename") or die "Error, cannot write to file: $chimeric_trans_gff3_filename";
@@ -249,9 +295,22 @@ sub report_LR_fusions {
         my $scaffold_orig_coord_info_href = $orig_coord_info_href->{$scaffold};
         my $scaffold_coordinate_mappings_aref = $scaffold_to_orig_coords_href->{$scaffold};
 
-        my ($left_genome_breakpoint, $left_ref_splice_mapping) = &infer_genome_breakpoint_from_local_coord($break_lend, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref);
-        my ($right_genome_breakpoint, $right_ref_splice_mapping)  = &infer_genome_breakpoint_from_local_coord($break_rend, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref);
+        my ($adj_break_lend, $left_genome_breakpoint, $left_ref_splice_mapping) = &infer_genome_breakpoint_from_local_coord($break_lend, 
+                                                                                                           $scaffold_orig_coord_info_href, 
+                                                                                                           $scaffold_coordinate_mappings_aref,
+                                                                                                           $SNAP_dist);
+        
+        # in case it snapped:
+        $break_lend = $adj_break_lend;
 
+        my ($adj_break_rend, $right_genome_breakpoint, $right_ref_splice_mapping)  = &infer_genome_breakpoint_from_local_coord($break_rend, 
+                                                                                                              $scaffold_orig_coord_info_href, 
+                                                                                                              $scaffold_coordinate_mappings_aref,
+                                                                                                              $SNAP_dist);
+        
+        # in case it snapped:
+        $break_rend = $adj_break_rend;
+        
         my $splice_type = ($left_ref_splice_mapping == 1 && $right_ref_splice_mapping == 1) ? "ONLY_REF_SPLICE" : "INCL_NON_REF_SPLICE";
         
         push (@fusion_structs,
@@ -290,7 +349,7 @@ sub report_LR_fusions {
     
 
     ## extract the chimeric alignments from the gff3 file.
-    open (my $fh, $gff3_align_file) or die $!;
+    open (my $fh, $LR_gff3_filename) or die $!;
     while (<$fh>) {
         unless (/\w/) { next; }
         if (/^\#/) { next; }
@@ -324,41 +383,41 @@ sub report_LR_fusions {
 
 ####
 sub get_breakpoint_coords {
-    my ($geneA_coords_href, $geneB_coords_href, $trin_coords_href) = @_;
+    my ($LR_coordsets_aref, $geneA_max, $geneB_min) = @_;
+    
+    for (my $i = 0; $i < $#$LR_coordsets_aref; $i++) {
+        
+        my $segment_left_aref = $LR_coordsets_aref->[$i];
+        my $segment_right_aref = $LR_coordsets_aref->[$i+1];
 
-    ## get left breakpoint
-    my @left_shared_coords;
+        # check adjacent exon coordinate boundaries to see if they are closest to the different gene boundaries
+        # as expected for a fusion breakpoint.
 
-    foreach my $coord (keys %$geneA_coords_href) {
-        if ($trin_coords_href->{$coord}) {
-            push (@left_shared_coords, $coord);
+        my $left_end = $segment_left_aref->[1];
+        my $right_end = $segment_right_aref->[0];
+        
+        if (&is_closer($left_end, $geneA_max, $geneB_min) && &is_closer($right_end, $geneB_min, $geneA_max)) {
+            return($left_end, $right_end);
         }
     }
+
+    confess ("Error, not finding a proper fusion breakpoint for : " . Dumper($LR_coordsets_aref) . " with gene bounds {$geneA_max, $geneB_min} ");
     
-    @left_shared_coords = sort {$a<=>$b} @left_shared_coords;
-    my $left_breakpoint = pop @left_shared_coords;
-    unless ($left_breakpoint) {
-        confess "Error, no left breakpoint";
-    }
-    
-    ## get right breakpoint
-    my @right_shared_coords;
-
-    foreach my $coord (keys %$geneB_coords_href) {
-        if ($trin_coords_href->{$coord}) {
-            push (@right_shared_coords, $coord);
-        }
-    }
-    @right_shared_coords = sort {$a<=>$b} @right_shared_coords;
-
-    my $right_breakpoint = shift @right_shared_coords;
-
-    unless ($right_breakpoint) {
-        confess "Error, no right breakpoint";
-    }
-       
-    return($left_breakpoint, $right_breakpoint);
 }
+
+####
+sub is_closer {
+    # determine if coord_A is closer to coord_B than to coord_C
+    my ($coord_A, $coord_B, $coord_C) = @_;
+
+    if (abs($coord_A - $coord_B) < abs($coord_A - $coord_C)) {
+        return(1);
+    }
+    else {
+        return(0);
+    }
+}
+
 
 ####
 sub organize_original_coordinate_info { 
@@ -388,12 +447,12 @@ sub organize_original_coordinate_info {
 
 
 sub infer_genome_breakpoint_from_local_coord {
-    my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref) = @_;
+    my ($break_coord, $scaffold_orig_coord_info_href, $scaffold_coordinate_mappings_aref, $SNAP_dist) = @_;
 
     if (my $struct = $scaffold_orig_coord_info_href->{$break_coord}) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
 
-        return("$chrom:$coord:$orient", 1);
+        return($break_coord, "$chrom:$coord:$orient", 1);
     }
     else {
         
@@ -412,14 +471,22 @@ sub infer_genome_breakpoint_from_local_coord {
         my $chrom = $closest_struct->{chrom};
         my $orient = $closest_struct->{orient};
         my $coord;
-        if ($orient eq '+') {
-            $coord = $closest_struct->{coord} + $smallest_delta;
+        if (abs($smallest_delta) <= $SNAP_dist) {
+            $coord = $closest_struct->{coord};
+            my $adj_break = $closest_struct->{contig_coord};
+            return($adj_break, "$chrom:$coord:$orient", 1); # now at splice site
         }
         else {
-            $coord = $closest_struct->{coord} - $smallest_delta;
+            if ($orient eq '+') {
+                $coord = $closest_struct->{coord} + $smallest_delta;
+            }
+            else {
+                $coord = $closest_struct->{coord} - $smallest_delta;
+            }
+            return($break_coord, "$chrom:$coord:$orient", 0);
         }
-        print STDERR "$chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
-        return("$chrom:$coord:$orient", 0);
+        #print STDERR "$chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
+        
         
     }
     
