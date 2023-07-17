@@ -1,0 +1,9 @@
+# ctat-LR-fusion v0.6.0
+- bugfixes for non-ref-splice coordinate assignments
+- added option: --snap_dist <int>               :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
+- added option: --min_frac_dom_iso_expr <float>     : minimum expression of dominant isoform (default: 0.05)
+- adjusted minimap2 alignment params used.
+- exits gracefully if no fusions found in initial phase.
+- cleaner organization of IGV-prep files.
+
+
