@@ -47,6 +47,14 @@ arguments.add_argument("--json_outfile",
                        type=str,
                        help = "The output json file to create" )
 
+
+arguments.add_argument("--roi_outfile",
+                       required=True,
+                       type=str,
+                       help="bed file indicating fusion breakpoints as roi")
+                       
+
+
 arguments.add_argument("--file_prefix",
                        dest = "file_prefix",
                        required=True,
@@ -72,6 +80,9 @@ dict_json = {"fusions" : [] }
 
 fusions_table = os.path.join( absolute_fusion_directory, "ctat-LR-fusion.fusion_predictions.abridged.tsv") 
 
+
+fusion_breakpoint_rois = list()
+
 # Make fusion detail
 with open(fusions_table, "rt" ) as fh:
     fusion_detail_reader = csv.DictReader(fh, delimiter="\t")
@@ -92,9 +103,23 @@ with open(fusions_table, "rt" ) as fh:
                         
         dict_json["fusions"].append( fusion_detail_current )
 
+
+        # get roi breakpoint info:
+        fusion_breakpoint_rois.append([row['#FusionName'],
+                                       row['LeftLocalBreakpoint'],
+                                       row['RightLocalBreakpoint'] ])
+
 # Store as a json object
 with open( args.output_json_file, "w" ) as write_json:
     write_json.write( json.dumps( dict_json, sort_keys=True, indent= 2 ) )
+
+
+# write roi bed file
+with open(args.roi_outfile, "wt") as ofh:
+    for roi in fusion_breakpoint_rois:
+        print("\t".join(roi), file=ofh)
+        
+
 
 sys.exit(0)
 

@@ -665,10 +665,12 @@ sub include_IGV_REPORTS {
     ## generate the fusion json table
 
     my $fusions_json_file = "$igv_prep_dir/igv.fusion_inspector_web.json";
-    
+    my $roi_outfile = "$igv_prep_dir/igv.LR.breakoint.roi.bed";
+
     $cmd = "$UTILDIR/create_ctat-LR-fusion_inspector_igvjs.py"
         . " --fusion_inspector_directory $output_directory "
         . " --json_outfile $fusions_json_file"
+        . " --roi_outfile $roi_outfile"
         . " --file_prefix ctat-LR-fusion";
     
     

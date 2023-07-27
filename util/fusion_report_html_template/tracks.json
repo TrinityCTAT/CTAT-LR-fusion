@@ -34,5 +34,11 @@
     "showCoverage": false,
     "visibilityWindow": -1,
     "order": 35
+  },
+  {
+    "url": "igv.LR.breakoint.roi.bed",
+    "type": "roi",
+    "color": "rgba(94,255,1,0.25)",
+    "format": "bed"
   }
 ]
