@@ -9,12 +9,54 @@ use SAM_reader;
 use SAM_entry;
 use Carp;
 use List::Util qw(min max);
+use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 
-my $usage = "usage: $0 file.sam [debug_flag=0]\n\n";
 
-my $sam_file = $ARGV[0] or die $usage;
 
-my $DEBUG = $ARGV[1];
+
+my $usage = <<__EOUSAGE__;
+
+####################################################################
+#
+#  --sam <string>      sam or bam file with transcript alignments 
+# 
+#  --format <string>   gff3 | gtf 
+#
+#  --debug|d
+#
+####################################################################
+
+
+__EOUSAGE__
+
+    ;
+
+
+my $sam_file;
+my $format;
+my $help_flag;
+my $DEBUG = 0;
+
+&GetOptions ( 'help|h' => \$help_flag,
+              'format=s' => \$format,
+              'sam=s' => \$sam_file,
+              'debug|d' => \$DEBUG);
+
+
+if ($help_flag) {
+    die $usage;
+}
+
+unless ($sam_file && $format) {
+    
+    die $usage;
+
+}
+
+unless ($format =~ /^(gff3|gtf)$/) {
+    die "Sorry, only gff3 or gtf is allowed for --format";
+}
+
 
 main: {
 
@@ -71,8 +113,6 @@ main: {
         if ($num_mismatches < 0) {
             confess "Error, calculated negative mismatch count from: NM:$NM, indel:$num_indel_nts, cigar: $cigar_align";
         }
-
-        
         
 
 		my $scaff_name = $sam_entry->get_scaffold_name();
@@ -161,19 +201,47 @@ main: {
         #
         
         
-        
-        foreach my $coordset_ref (@merged_coords) {
-            my ($genome_lend, $genome_rend, $trans_lend, $trans_rend) = @$coordset_ref;
+        if ($format eq "gtf") {
+            # need a transcript record.
+            @merged_coords = sort {$a->[0]<=>$b->[0]} @merged_coords;
+            my $genome_lend = $merged_coords[0]->[0];
+            my $genome_rend = $merged_coords[-1]->[1];
+            my $trans_lend = $merged_coords[0]->[2];
+            my $trans_rend = $merged_coords[-1]->[3];
             
             print join("\t",
                        $scaff_name,
                        "minimap2",
-                       "cDNA_match",
+                       "transcript",
                        $genome_lend, $genome_rend,
                        $per_id,
                        $strand,
                        ".",
-                       "ID=$align_counter;Parent=$align_counter.mrna;Target=$read_name $trans_lend $trans_rend") . "\n";
+                       "gene_id \"$align_counter.g\"; transcript_id \"$align_counter.mrna\"; Target \"$read_name $trans_lend $trans_rend\";"
+                ) . "\n"; 
+        }
+        
+        foreach my $coordset_ref (@merged_coords) {
+            my ($genome_lend, $genome_rend, $trans_lend, $trans_rend) = @$coordset_ref;
+
+            
+            my $feat_type = ($format eq "gff3") ? "cDNA_match" : "exon";
+            
+            my $info_field = ($format eq "gff3") ?
+                "ID=$align_counter;Parent=$align_counter.mrna;Target=$read_name $trans_lend $trans_rend" :
+                "gene_id \"$align_counter.g\"; transcript_id \"$align_counter.mrna\"; Target \"$read_name $trans_lend $trans_rend\";";
+            
+
+            print join("\t",
+                       $scaff_name,
+                       "minimap2",
+                       $feat_type,
+                       $genome_lend, $genome_rend,
+                       $per_id,
+                       $strand,
+                       ".",
+                       $info_field
+                ) . "\n";
         }
         print "\n";
         

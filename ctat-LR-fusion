@@ -320,7 +320,7 @@ main: {
 
     $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     
-    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl  $mm2_intermediate_output_file_prefix.sam >  $mm2_intermediate_output_file_prefix.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_intermediate_output_file_prefix.sam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
     $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
     
     ###############################
