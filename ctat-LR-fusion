@@ -381,7 +381,7 @@ main: {
 
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
     
-    $cmd = "$UTILDIR/SAM_to_gff3.minimap2.pl $intermediates_dir/LR-FI.mm2.sam > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.sam --format gff3 > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl "
