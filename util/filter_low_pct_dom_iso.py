@@ -43,7 +43,13 @@ def main():
 
     retained_fusions = data[ data['above_frac_dom_iso' ] ]  
 
+    # sort descending by long read support
+    
+    filtered_out_fusions = filtered_out_fusions.sort_values(by=['num_LR'], ascending=False)
 
+    retained_fusions = retained_fusions.sort_values(by=['num_LR'], ascending=False)
+
+    
     filtered_out_fusions.to_csv(fusions_output_filename + ".removed_below_min_frac_dom_iso", sep="\t", index=False, quoting=csv.QUOTE_NONE) 
     retained_fusions.to_csv(fusions_output_filename, sep="\t", index=False, quoting=csv.QUOTE_NONE)
 
