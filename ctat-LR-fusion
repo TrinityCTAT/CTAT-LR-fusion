@@ -661,38 +661,53 @@ sub include_IGV_REPORTS {
     $pipeliner->add_commands(new Command($cmd, "prep_igv_seqsim_bed.ok") );
 
     
-    
-    
-
-
-
     ################################
     ## generate the fusion json table
 
-    my $json_file = "$igv_prep_dir/igv.fusion_inspector_web.json";
-    
+    my $fusions_json_file = "$igv_prep_dir/igv.fusion_inspector_web.json";
+    my $roi_outfile = "$igv_prep_dir/igv.LR.breakoint.roi.bed";
+
     $cmd = "$UTILDIR/create_ctat-LR-fusion_inspector_igvjs.py"
         . " --fusion_inspector_directory $output_directory "
-        . " --json_outfile $json_file"
+        . " --json_outfile $fusions_json_file"
+        . " --roi_outfile $roi_outfile"
         . " --file_prefix ctat-LR-fusion";
     
     
-    $pipeliner->add_commands(new Command($cmd, "ctat-LR-igvjs.ok") );
+    $pipeliner->add_commands(new Command($cmd, "ctat-LR-fusion_report_json.ok") );
     
     ###############
     # make the html
-    my $html_template = "$UTILDIR/fusion_report_html_template/igvjs_fusion.html";
+    ## old way, since deprecated and now using igv-reports 
+    #my $html_template = "$UTILDIR/fusion_report_html_template/igvjs_fusion.html";
+    #
+    #$cmd = "$UTILDIR/fusion-reports/create_fusion_report.py"
+    #    . " --html_template $html_template "
+    #    . " --fusions_json $json_file "
+    #    . " --input_file_prefix $igv_prep_dir/igv"
+    #    . " --html_output $output_directory/ctat-LR-fusion.fusion_inspector_web.html";
+    #
+    #
+    #$pipeliner->add_commands(new Command($cmd, "fusion_reports_html.ok"));
     
-    $cmd = "$UTILDIR/fusion-reports/create_fusion_report.py"
-        . " --html_template $html_template "
-        . " --fusions_json $json_file "
-        . " --input_file_prefix $igv_prep_dir/igv"
-        . " --html_output $output_directory/ctat-LR-fusion.fusion_inspector_web.html";
-
+    my $tracks_json_file = "$UTILDIR/fusion_report_html_template/tracks.json";
     
-    $pipeliner->add_commands(new Command($cmd, "fusion_reports_html.ok"));
+    my $tracks_json_cp_file = "$igv_prep_dir/tracks.json";
+    $cmd = "cp $tracks_json_file $tracks_json_cp_file";
+    $pipeliner->add_commands(new Command($cmd, "copy_tracks_json.ok"));
     
-        
+    $cmd = "cd $igv_prep_dir && "
+        . " create_report "
+        . " $fusions_json_file "
+        . " igv.genome.fa "
+        . " --type fusion "
+        . " --track-config $tracks_json_cp_file "
+        . " --output $output_directory/ctat-LR-fusion.fusion_inspector_web.html";
+    
+    
+    $pipeliner->add_commands(new Command($cmd, "fusion_igv_reports_html.ok"));
+   
+    return;
 }
 
 ####
