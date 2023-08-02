@@ -30,6 +30,12 @@ def main():
 
     data = pd.read_csv(fusions_input_filename, sep="\t", quotechar='"')
 
+    if data.shape[0] == 0:
+        logger.info("no fusion entries to filter.\n")
+        data.to_csv(fusions_output_filename, sep="\t", index=False, quoting=csv.QUOTE_NONE)
+        sys.exit(0)
+    
+
     def filter_frac_dom_iso (group_df):
         group_df['max_LR_FFPM'] = group_df['LR_FFPM'].max()
         group_df['frac_dom_iso'] = group_df['LR_FFPM'] / group_df['max_LR_FFPM']
