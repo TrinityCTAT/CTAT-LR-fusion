@@ -1,3 +1,7 @@
+# ctat-LR-fusion v0.7.0
+- included --min_FFPM (with default at 0.1), important when tackling massive data sets to avoid pursuing hundereds of thousands of candidates in phase 2.
+
+
 # ctat-LR-fusion v0.6.0
 - bugfixes for non-ref-splice coordinate assignments
 - added option: --snap_dist <int>               :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.

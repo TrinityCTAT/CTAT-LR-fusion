@@ -152,7 +152,7 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
     
 RUN pip install pandas
 
-RUN pip install requests igv-reports
+RUN pip install requests igv-reports==1.8.0
 
 ENV ctat_LR_fusion_version 0.6.0
 ENV CTAT_LR_FUSION_CO 9fb85808fe7ea965c3a1df8871062d63dcb8057d
