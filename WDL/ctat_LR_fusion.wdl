@@ -34,8 +34,8 @@ workflow ctat_LR_fusion_wf {
           min_J=min_J,
           min_sumJS=min_sumJS,    
           min_novel_junction_support=min_novel_junction_support,
-	  illumina_left_fq=illumina_left_fq,
-	  illumina_right_fq=illumina_right_fq,
+          illumina_left_fq=illumina_left_fq,
+	      illumina_right_fq=illumina_right_fq,
 
           docker=docker,
           cpu=cpu,
@@ -86,6 +86,7 @@ task CTAT_LR_FUSION_TASK {
                 --genome_lib_dir ctat_genome_lib_build_dir \
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
                 --min_per_id ~{min_per_id} \
+                --CPU ~{cpu} \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir
