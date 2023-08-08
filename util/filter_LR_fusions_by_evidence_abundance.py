@@ -25,7 +25,7 @@ def main():
     parser.add_argument("--min_J", type=int, default=1, help="min number of Illumina junction reads with canonical splice breakpoints")
     parser.add_argument("--min_sumJS", type=int, default=1, help="min number of Illumina reads supporting junction and spanning frags summed")
     parser.add_argument("--min_novel_junction_support", type=int, default=3, help="min number of junction reads with non-canonical splice support")
-    parser.add_argument("--min_FFPM", type=float, default=0.1, help="min FFPM value for short reads")
+    parser.add_argument("--min_FFPM", type=float, default=0.1, help="min FFPM value for long or short reads.  If short reads >= min_FFPM and long reads < min_FFPM, still reported")
 
     args = parser.parse_args()
 
@@ -47,9 +47,13 @@ def main():
         data_filtered = data[
             (    # long read criteria
 
-                 ( (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
-                  |
-                 (data.num_LR >= min_LR_novel_junction_support)
+                (
+                    ( (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
+                    |
+                    (data.num_LR >= min_LR_novel_junction_support)
+                ) & (
+                    data.LR_FFPM >= min_FFPM | data.FFPM >= min_FFPM  # continue to report long read if the short read FFPM meets threshold.
+                    )
             )
                 |
             (    # short read criteria
@@ -70,9 +74,14 @@ def main():
         # filter just based on long reads
         data_filtered = data[
             
-              (  (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
+              (
+                (  (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
                   |
                 (data.num_LR >= min_LR_novel_junction_support)
+              ) & (
+                 data.LR_FFPM >= min_FFPM
+                  )
+            
             ]
     
     

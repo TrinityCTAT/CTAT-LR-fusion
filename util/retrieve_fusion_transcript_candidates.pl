@@ -16,7 +16,7 @@ use Data::Dumper;
 my $usage = <<__EOUSAGE__;
 
 
-#######################################################################
+#########################################################################################################
 #
 # --trans_fasta <string>     transcripts.fasta for long reads
 #
@@ -26,7 +26,9 @@ my $usage = <<__EOUSAGE__;
 #
 # --output_prefix <string>    prefix name for output files (prefix).transcripts.fa and (prefix).FI_listing
 #
-#######################################################################
+# --min_FFPM <float>          min fusion expression for candidates to pursue
+#
+###########################################################################################################
 
 
 __EOUSAGE__
@@ -42,12 +44,14 @@ my $chims_described;
 my $MAX_EXON_DELTA;
 my $help_flag;
 my $output_prefix;
+my $min_FFPM;
 
 &GetOptions ( 'help|h' => \$help_flag,
-	      'trans_fasta=s' => \$trans_fasta,
-	      'chims_described=s' => \$chims_described,
-	      'max_exon_delta=i' => \$MAX_EXON_DELTA,
-	      'output_prefix=s' => \$output_prefix,
+              'trans_fasta=s' => \$trans_fasta,
+              'chims_described=s' => \$chims_described,
+              'max_exon_delta=i' => \$MAX_EXON_DELTA,
+              'output_prefix=s' => \$output_prefix,
+              'min_FFPM=f' => \$min_FFPM,
     );
 
 if ($help_flag) {
@@ -75,6 +79,12 @@ unless (defined($MAX_EXON_DELTA)) {
     die $usage;
 }
 
+unless (defined ($min_FFPM) ) {
+    print STDERR "\n\nError, must set --min_FFPM ";
+    die $usage;
+}
+
+
 $trans_fasta = &ensure_full_path($trans_fasta);
 $chims_described = &ensure_full_path($chims_described);
 
@@ -88,9 +98,28 @@ foreach my $file ($trans_fasta, $chims_described) {
 
 main: {
 
-    my %fusion_pairs;
-    my %chims = &parse_chims($chims_described, $MAX_EXON_DELTA, \%fusion_pairs);
 
+    # get total read count.
+    my $TOTAL_READS = `grep '>' $trans_fasta | wc -l `;
+    if ($?) { 
+        die "Error, cmd: \"grep '>' $trans_fasta | wc -l  \" died with ret $?";
+    }
+    chomp $TOTAL_READS;
+    $TOTAL_READS = int($TOTAL_READS);
+    unless ($TOTAL_READS > 0) {
+        die "Error, could not count number of reads from file: $trans_fasta (shouldnt happen....)";
+    }
+    
+    my %fusion_pair_read_counts;
+    my %fusion_pair_to_read_names;
+    
+    my %chims = &parse_chims($chims_described, $MAX_EXON_DELTA, \%fusion_pair_read_counts, \%fusion_pair_to_read_names);
+
+    print STDERR "Pre-FFPM-filtering of prelim phase-1 candidates: " . scalar(keys %fusion_pair_read_counts) . " fusion pairs involving " . scalar(keys %chims) . " reads.\n";
+    
+    &filter_chims_via_FFPM(\%chims, \%fusion_pair_read_counts, \%fusion_pair_to_read_names, $TOTAL_READS, $min_FFPM);
+    
+    print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: " . scalar(keys %fusion_pair_read_counts) . " fusion pairs involving " . scalar(keys %chims) . " reads.\n";
     
     open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
         
@@ -115,6 +144,11 @@ main: {
     }
     close $ofh_fasta;
     
+    
+    unless ($read_counter == $TOTAL_READS) {
+        die "Error, $read_counter != $TOTAL_READS, so mismatch between read counting results. (bug) ";
+    }
+    
 
     if (%chims) {
         die "ERROR, missing sequences for reads: " . Dumper(\%chims);
@@ -122,8 +156,8 @@ main: {
 
     # write the fusion listing
     open(my $ofh_FI_list, ">$output_prefix.FI_listing") or die $!;
-    foreach my $fusion_pair (sort {$fusion_pairs{$b} <=> $fusion_pairs{$a}} keys %fusion_pairs) {
-        print $ofh_FI_list "$fusion_pair\t$fusion_pairs{$fusion_pair}\n";
+    foreach my $fusion_pair (sort {$fusion_pair_read_counts{$b} <=> $fusion_pair_read_counts{$a}} keys %fusion_pair_read_counts) {
+        print $ofh_FI_list "$fusion_pair\t$fusion_pair_read_counts{$fusion_pair}\n";
     }
     close $ofh_FI_list;
 
@@ -144,7 +178,7 @@ main: {
 
 ####
 sub parse_chims {
-    my ($chims_described_file, $MAX_EXON_DELTA, $fusion_pairs_href) = @_;
+    my ($chims_described_file, $MAX_EXON_DELTA, $fusion_pair_read_counts_href, $fusion_pair_to_read_names_href) = @_;
 
     my %chims;
     
@@ -175,10 +209,31 @@ sub parse_chims {
               }
             );
 
-        $fusion_pairs_href->{$fusion_name}++;
+        $fusion_pair_read_counts_href->{$fusion_name}++;
+        push (@{$fusion_pair_to_read_names_href->{$fusion_name}}, $trans_acc);
     }
     close $fh;
-
+    
     return(%chims);
 }
 
+
+####
+sub filter_chims_via_FFPM {
+    my ($chims_href, $fusion_pair_read_counts_href, $fusion_pair_to_read_names_href, $TOTAL_READS, $min_FFPM) = @_;
+
+    foreach my $fusion_pair (keys %$fusion_pair_to_read_names_href) {
+        my $read_support = $fusion_pair_read_counts_href->{$fusion_pair};
+        my $ffpm = $read_support / $TOTAL_READS * 1e6;
+        if ($ffpm < $min_FFPM) {
+            ## remove candidates.
+            my @transcripts = @{$fusion_pair_to_read_names_href->{$fusion_pair}};
+            delete $fusion_pair_read_counts_href->{$fusion_pair};
+            foreach my $transcript (@transcripts) {
+                delete $chims_href->{$transcript};
+            }
+        }
+    }
+    
+    return;
+}
