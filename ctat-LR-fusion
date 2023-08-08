@@ -63,6 +63,10 @@ my $SNAP_dist = 3;
 
 my $MIN_FRACTION_DOMINANT_ISO = 0.05;
 
+
+my $MIN_FFPM = 0.1;
+
+
 my $usage = <<__EOUSAGE__;
 
 ############################################################################################################
@@ -85,6 +89,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID) minimap2 alignments < --min_per_id are discarded.
 #
+#  --min_FFPM <float>              :min fusion expression (default: $MIN_FFPM FFPM - meaning at least 1 fusion read per 10 M total reads )
 #
 #  --output|o <string>             :output directory name (default: $output_directory)
 #
@@ -130,7 +135,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --no_annot_filter               : disable filtering outputs based on fusion annotations.
 #
-#  --no_abundance_filter           : disable filtering based on read support
+#  --no_abundance_filter           : disable final phase-2 filtering based on read support (does not impact phase-1 min_FFPM based filtering!)
 #
 #  --prep_reference                : prepares mininmap2 genome index
 #  --prep_reference_only           : only prepares genome index and then stops.
@@ -197,7 +202,9 @@ my $extract_fusion_LR_fasta = "";
               'top_candidates_only=i' => \$top_candidates_only,
 
               'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
-	      
+
+              'min_FFPM=f' => \$MIN_FFPM,
+              
 );
 
 
@@ -336,7 +343,12 @@ main: {
     my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
     my $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa";
     my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
-    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl --trans_fasta $transcripts_file --chims_described $chims_described_outfile --max_exon_delta $MAX_EXON_DELTA --output_prefix $chim_candidates_output_prefix";
+    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl "
+        . " --trans_fasta $transcripts_file "
+        . " --chims_described $chims_described_outfile "
+        . " --max_exon_delta $MAX_EXON_DELTA "
+        . " --min_FFPM $MIN_FFPM "
+        . " --output_prefix $chim_candidates_output_prefix";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
 
     $pipeliner->run();
@@ -365,7 +377,7 @@ main: {
     $pipeliner->add_commands(new Command($cmd, "FI_contigs.ok"));
 
     $pipeliner->run();
-
+    
     ## prep for mm2
     my $FI_splice_bed = "$intermediates_dir/LR-FI_targets.gtf.mm2.splice.bed";
     my $FI_mm2 = "$intermediates_dir/LR-FI_targets.fa.mm2";
@@ -473,6 +485,7 @@ main: {
         
         $cmd = "$UTILDIR/filter_LR_fusions_by_evidence_abundance.py "
             . " --min_num_LR $MIN_NUM_LR "
+            . " --min_FFPM $MIN_FFPM "
             . " --min_LR_novel_junction_support $MIN_LR_NOVEL "
             . " --min_J $MIN_J "
             . " --min_sumJS $MIN_SUM_JS "
@@ -515,11 +528,11 @@ main: {
 
 
     if ($extract_fusion_LR_fasta) {
-	$cmd = "$UTILDIR/extract_fusion_evidence_reads.pl "
-	    . " --fusions $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
-	    . " --reads_fasta $chim_candidates_fasta "
-	    . " --reads_output $extract_fusion_LR_fasta";
-	$pipeliner->add_commands(new Command($cmd, "extract_fusion_reads.ok"));
+        $cmd = "$UTILDIR/extract_fusion_evidence_reads.pl "
+            . " --fusions $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
+            . " --reads_fasta $chim_candidates_fasta "
+            . " --reads_output $extract_fusion_LR_fasta";
+        $pipeliner->add_commands(new Command($cmd, "extract_fusion_reads.ok"));
     }
     
     
