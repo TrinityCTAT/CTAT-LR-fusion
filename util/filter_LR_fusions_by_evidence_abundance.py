@@ -52,7 +52,7 @@ def main():
                     |
                     (data.num_LR >= min_LR_novel_junction_support)
                 ) & (
-                    data.LR_FFPM >= min_FFPM | data.FFPM >= min_FFPM  # continue to report long read if the short read FFPM meets threshold.
+                    (data.LR_FFPM >= min_FFPM) | (data.FFPM >= min_FFPM)  # continue to report long read if the short read FFPM meets threshold.
                     )
             )
                 |
