@@ -22,6 +22,8 @@ my $usage = <<__EOUSAGE__;
 # 
 #  --format <string>   gff3 | gtf 
 #
+#  --allow_non_primary    report non-primary alignments (by default, only reports primary alignments)
+#
 #  --debug|d
 #
 ####################################################################
@@ -36,10 +38,12 @@ my $sam_file;
 my $format;
 my $help_flag;
 my $DEBUG = 0;
+my $allow_non_primary = 0;
 
 &GetOptions ( 'help|h' => \$help_flag,
               'format=s' => \$format,
               'sam=s' => \$sam_file,
+              'allow_non_primary' => \$allow_non_primary,
               'debug|d' => \$DEBUG);
 
 
@@ -68,7 +72,7 @@ main: {
 
 		my $sam_entry = $sam_reader->get_next();
 
-        unless ($sam_entry->is_primary()) {
+        if ( (! $sam_entry->is_primary() ) && ( ! $allow_non_primary) )  {
             next;
         }
         
