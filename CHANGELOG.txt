@@ -1,6 +1,7 @@
 # ctat-LR-fusion v0.9.0
 - ctat-minimap2 update for chimeric reads 
-
+- includes default filtering at the 0.1 FFPM threshold
+- igv-reports upgrade, better performance and highlight fusion breakpoints as ROIs
 
 devel versions:
       # --discarded-- (ctat-LR-fusion v0.8.0  
