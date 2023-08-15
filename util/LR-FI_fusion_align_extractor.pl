@@ -355,8 +355,12 @@ sub report_LR_fusions {
         
         my $splice_type = ($left_ref_splice_mapping == 1 && $right_ref_splice_mapping == 1) ? "ONLY_REF_SPLICE" : "INCL_NON_REF_SPLICE";
         
+        my ($left_gene, $right_gene) = split(/--/, $scaffold);
+
         push (@fusion_structs,
               { fusion_name => $scaffold,
+                LeftGene => $left_gene,
+                RightGene => $right_gene,
                 LeftLocalBreakpoint => $break_lend,
                 RightLocalBreakpoint => $break_rend,
                 LeftBreakpoint => $left_genome_breakpoint,
@@ -378,18 +382,25 @@ sub report_LR_fusions {
 
     
     print $LR_breakpoint_summary_ofh join("\t", "#FusionName", "num_LR", 
-               "LeftLocalBreakpoint", "RightLocalBreakpoint",
-               "LeftBreakpoint", "RightBreakpoint", "SpliceType",
-               "LR_accessions") . "\n";
+                                          "LeftGene",
+                                          "LeftLocalBreakpoint", 
+                                          "LeftBreakpoint", 
+                                          "RightGene",
+                                          "RightLocalBreakpoint",
+                                          "RightBreakpoint", 
+                                          "SpliceType",
+                                          "LR_accessions") . "\n";
 
     foreach my $fusion (@fusion_structs) {
 
         print $LR_breakpoint_summary_ofh join("\t", 
                                               $fusion->{fusion_name}, 
                                               $fusion->{num_LR},
+                                              $fusion->{LeftGene},
                                               $fusion->{LeftLocalBreakpoint},
-                                              $fusion->{RightLocalBreakpoint},
                                               $fusion->{LeftBreakpoint},
+                                              $fusion->{RightGene},
+                                              $fusion->{RightLocalBreakpoint},
                                               $fusion->{RightBreakpoint},
                                               $fusion->{SpliceType},
                                               join(",", @{$fusion->{LR_accessions}})) . "\n";
