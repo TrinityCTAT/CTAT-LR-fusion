@@ -107,7 +107,7 @@ with open(fusions_table, "rt" ) as fh:
         # get roi breakpoint info:
         fusion_breakpoint_rois.append([row['#FusionName'],
                                        row['LeftLocalBreakpoint'],
-                                       row['RightLocalBreakpoint'] ])
+                                       str(int(row['RightLocalBreakpoint']) -1)])
 
 # Store as a json object
 with open( args.output_json_file, "w" ) as write_json:

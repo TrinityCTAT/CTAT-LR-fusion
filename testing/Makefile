@@ -23,6 +23,11 @@ test_longOnly_fq:
 	../ctat-LR-fusion -T transcripts.fq --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.fq --min_J 1  --min_sumJS 1 --min_novel_junction_support 1
 
 
+test_oncoreads:
+	../ctat-LR-fusion -T oncofusionreads.fasta.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.oncoreads --vis
+
+
+
 test_docker:
 	../Docker/run_docker.sh ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib --min_J 1  --min_sumJS 1 --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz -o ctat_LR_fusion_outdir.docker --vis
 
@@ -31,7 +36,7 @@ test_singularity:
 	singularity exec -e -B `pwd`:/data -B ${CTAT_GENOME_LIB}:/ctat_genome_lib ../Docker/ctat_lr_fusion.simg ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib --min_J 1  --min_sumJS 1 --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz -o ctat_LR_fusion_outdir.singularity --vis
 
 clean:
-	rm -rf ./ctat_LR_fusion_outdir.incl_short ./ctat_LR_fusion_outdir.excl_short* ./ctat_LR_fusion_outdir.singularity
+	rm -rf ./ctat_LR_fusion_outdir.incl_short ./ctat_LR_fusion_outdir.excl_short* ./ctat_LR_fusion_outdir.singularity ./ctat_LR_fusion_outdir.oncoreads
 	sudo rm -rf ./ctat_LR_fusion_outdir.docker
 
 
