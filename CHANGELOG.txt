@@ -1,6 +1,13 @@
+# ctat-LR-fusion v0.10.0  Aug 19, 2023
+- more optimization of ctat-minimap2
+- bugfix to ROI definition off-by-one on acceptor site for igv-report display
+- include LeftGene and RightGene columns
+- added get_MAS-seq_fusion_cell_barcoding.py for supporting sc-MAS-seq analysis (single cells and long reads)
+
 # ctat-LR-fusion v0.9.0
 - ctat-minimap2 update for chimeric reads 
-
+- includes default filtering at the 0.1 FFPM threshold
+- igv-reports upgrade, better performance and highlight fusion breakpoints as ROIs
 
 devel versions:
       # --discarded-- (ctat-LR-fusion v0.8.0  

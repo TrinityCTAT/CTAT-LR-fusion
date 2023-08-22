@@ -27,8 +27,8 @@ def main():
 
     logger.info("-parsing {}".format(FI_fusions_filename))
     FI_df = pd.read_csv(FI_fusions_filename, sep="\t")
-
-
+    FI_df.rename(columns={'LeftGene':'LeftGene_SR', 'RightGene':'RightGene_SR'}, inplace=True) 
+    
     logger.info("-merging data frames.")
     merged_df = pd.merge(mm2_df, FI_df,
                          on=['#FusionName', 'LeftLocalBreakpoint', 'RightLocalBreakpoint', 'LeftBreakpoint', 'RightBreakpoint', 'SpliceType'],

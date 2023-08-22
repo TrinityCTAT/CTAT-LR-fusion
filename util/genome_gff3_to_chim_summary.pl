@@ -186,7 +186,7 @@ main: {
         
         my @spans;
         foreach my $span_id (@span_ids) {
-            print STDERR "// $target  $span_id\n";
+            #print STDERR "// $target  $span_id\n";
             my $exon_hits_aref = $target_to_aligns{$target}->{$span_id};
             
             eval {

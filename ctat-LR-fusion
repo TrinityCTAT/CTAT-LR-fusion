@@ -5,13 +5,13 @@ use warnings;
 use Carp;
 use Getopt::Long qw(:config no_ignore_case bundling pass_through);
 use FindBin;
-use Cwd;
+use Cwd qw(abs_path);
 use lib ("$FindBin::Bin/PerlLib");
 use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v0.9.0";
+my $VERSION = "v0.10.0";
 
 
 my $CPU = 4;
@@ -131,7 +131,7 @@ my $usage = <<__EOUSAGE__;
 #  --shrink_intron_length <int>    : length for shrinking long introns to during the FusionInspector-style alignments. default($shrink_intron_max_length)
 #  --no_shrink_introns             : disable intron shrinking during FusionInspector-style alignments.
 #
-#  --snap_dist <int>               :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
+#  --snap_dist <int>               :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site. (default: $SNAP_dist)
 #
 #  --no_annot_filter               : disable filtering outputs based on fusion annotations.
 #
@@ -315,6 +315,7 @@ main: {
         $transcripts_file = "$transcripts_file.fasta";
     }
     
+    $transcripts_file = abs_path($transcripts_file);
     
     ####################################################
     # run minimap2 to identify potential fusion transcripts
