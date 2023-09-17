@@ -100,6 +100,20 @@ task CTAT_LR_FUSION_TASK {
 
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
 
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa ~{sample_name}.ctat-LR-fusion.igv.genome.fa
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa.fai ~{sample_name}.ctat-LR-fusion.igv.genome.fa.fai
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.gtf ~{sample_name}.ctat-LR-fusion.igv.annot.gtf
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.bed ~{sample_name}.ctat-LR-fusion.igv.annot.bed
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam.bai ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam.bai
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.pfam.bed ~{sample_name}.ctat-LR-fusion.igv.pfam.bed
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.seqsimilar.bed ~{sample_name}.ctat-LR-fusion.igv.seqsimilar.bed
+    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.breakoint.roi.bed ~{sample_name}.ctat-LR-fusion.igv.LR.breakoint.roi.bed
+
+    tar -zcvf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv.*
+    
+
+    
     >>>
     
     output {
@@ -110,6 +124,7 @@ task CTAT_LR_FUSION_TASK {
       File prelim_fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv"
 
       File fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
+      File igv_tar="~{sample_name}.ctat-LR-fusion.igv.tar.gz"
     }
     
 
