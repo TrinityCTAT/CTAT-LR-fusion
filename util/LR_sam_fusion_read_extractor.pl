@@ -68,8 +68,12 @@ main: {
         }
     }
     close $fh;
-
-    open($fh, $FI_LR_sam) or die "Error, cannot open file: $FI_LR_sam";
+    if ($FI_LR_sam =~ /\.bam$/) {
+        open($fh, "samtools view -h $FI_LR_sam | ") or die "Error, cannot read $FI_LR_sam via samtools";
+    }
+    else {
+        open($fh, $FI_LR_sam) or die "Error, cannot open file: $FI_LR_sam";
+    }
     while(<$fh>) {
         my $line = $_;
         if ($line =~ /^\@/) {

@@ -323,12 +323,12 @@ main: {
 
     my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
   
-    my $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric --sam-hit-only  --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file > $mm2_intermediate_output_file_prefix.sam";
+    my $cmd = "set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric --sam-hit-only  --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_intermediate_output_file_prefix.bam";
     
 
     $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     
-    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_intermediate_output_file_prefix.sam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_intermediate_output_file_prefix.bam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
     $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
     
     ###############################
@@ -389,12 +389,12 @@ main: {
     &prep_minimap2_reference($FI_contigs_file, $intermediates_dir, $FI_mm2, $FI_splice_bed, $FI_annots_gtf);
     
     ## run mm2 using the chimeric candidates:
-    $cmd = "$CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta > $intermediates_dir/LR-FI.mm2.sam";
+    $cmd = "set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $intermediates_dir/LR-FI.mm2.bam";
 
 
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
     
-    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.sam --format gff3 > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl "
@@ -615,7 +615,7 @@ sub include_IGV_REPORTS {
     
     
     ## get the long read alignments
-    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam  $intermediates_dir/LR-FI.mm2.sam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
+    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam  $intermediates_dir/LR-FI.mm2.bam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
     $pipeliner->add_commands(new Command($cmd, "IGV_select_max_LR_per_fusion.ok"));
     
     $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";
