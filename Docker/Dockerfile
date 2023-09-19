@@ -169,4 +169,4 @@ RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && 
 RUN mv $SRC/CTAT-LR-fusion/* $BIN/
 
 
-
+SHELL ["/bin/bash", "-c"]
