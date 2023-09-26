@@ -68,7 +68,7 @@ task CTAT_LR_FUSION_TASK {
        Float disk_space_multiplier
   }
 
-  Int disk_space = ceil(size(genome_lib_tar, "GB") * disk_space_multiplier)
+  Int disk_space = ceil( (size(genome_lib_tar, "GB") + size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") ) * disk_space_multiplier)
   
   command <<<
 
