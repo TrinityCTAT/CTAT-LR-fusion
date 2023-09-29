@@ -85,11 +85,12 @@ main: {
             # not the first path reported.
             next;
         }
-                
-        my $sequence = $sam_entry->get_sequence();
-        if ($sequence eq "*") {
-            next;
-        }
+         
+        # secondary alignments dont contain sequence data sometimes.
+        #my $sequence = $sam_entry->get_sequence();
+        #if ($sequence eq "*") {
+        #    next;
+        #}
         
         my $sam_line = $sam_entry->get_original_line();
 
