@@ -1,3 +1,10 @@
+# ctat-LR-fusion v0.11.0 Oct 12, 2023
+- leaner on disk space usage by sam->bam streamed
+- include igv files bundle as output
+- adding LeftGene and RightGene info thats retained on short read integration
+- 
+
+
 # ctat-LR-fusion v0.10.0  Aug 19, 2023
 - more optimization of ctat-minimap2
 - bugfix to ROI definition off-by-one on acceptor site for igv-report display
