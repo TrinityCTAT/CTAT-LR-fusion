@@ -26,6 +26,8 @@ test_longOnly_fq:
 test_oncoreads:
 	../ctat-LR-fusion -T oncofusionreads.fasta.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.oncoreads --vis
 
+test_oncoreads_chim_candidates_only:
+	../ctat-LR-fusion -T oncofusionreads.fasta.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.oncoreads.chim_candidates_only --chim_candidates_only
 
 
 test_docker:

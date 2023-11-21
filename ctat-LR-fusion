@@ -11,8 +11,8 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v0.11.0";
-
+#my $VERSION = "v0.11.0";
+my $VERSION = "DEVEL";
 
 my $CPU = 4;
 my $output_directory = "ctat_LR_fusion_outdir";
@@ -63,6 +63,7 @@ my $SNAP_dist = 3;
 
 my $MIN_FRACTION_DOMINANT_ISO = 0.05;
 
+my $CHIM_CANDIDATES_ONLY = 0; # force stop after phase 1
 
 my $MIN_FFPM = 0.1;
 
@@ -146,6 +147,9 @@ my $usage = <<__EOUSAGE__;
 #  --extract_fusion_LR_fasta <string>  : extract the long reads that serve as evidence to the fusion and write them to the corresponding file.  
 #                                        The fusion name is prefixed to the read name like so:  fusion_name|read_name
 #
+#  --chim_candidates_only             : stop after first phase of identifying candidates before evaluating them in the second phase.
+#                                                     see chimera candidate listing as: output_dir/fusion_intermediates_dir/chimeric_read_candidates.FI_listing
+#
 #
 #  --version                             report version ($VERSION)
 #
@@ -204,6 +208,8 @@ my $extract_fusion_LR_fasta = "";
               'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
 
               'min_FFPM=f' => \$MIN_FFPM,
+    
+              'chim_candidates_only' => \$CHIM_CANDIDATES_ONLY,
               
 );
 
@@ -354,6 +360,12 @@ main: {
 
     $pipeliner->run();
 
+    if ($CHIM_CANDIDATES_ONLY) {
+        print STDERR "** --chim_candidates_only flag set, stopping here now.\n\n";
+        exit(0);
+    }
+    
+
     if (-e $FI_listing && (-s $FI_listing == 0)) {
         print STDERR "Sorry, no chimeric candidates to pursue. Stopping here.\n";
         exit(0);
@@ -435,10 +447,10 @@ main: {
         $cmd = "$UTILDIR/merge_mm2fusion_FI.py --mm2_fusions $fusions_filename  --FI_fusions FI/finspector.FusionInspector.fusions.tsv --output_file $merged_fusions_filename";
         $pipeliner->add_commands(new Command($cmd, "merge_mm2_FI.ok"));
 
-	$fusions_filename = $merged_fusions_filename;
+        $fusions_filename = $merged_fusions_filename;
 	
     }
-
+    
 
     #################################
     ## Fusion Annotator
