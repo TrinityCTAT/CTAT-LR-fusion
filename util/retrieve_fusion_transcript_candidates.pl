@@ -28,6 +28,8 @@ my $usage = <<__EOUSAGE__;
 #
 # --min_FFPM <float>          min fusion expression for candidates to pursue
 #
+# --skip_read_extraction      dont extract the fusion reads, just generate the prelim report.
+#
 ###########################################################################################################
 
 
@@ -45,6 +47,7 @@ my $MAX_EXON_DELTA;
 my $help_flag;
 my $output_prefix;
 my $min_FFPM;
+my $SKIP_READ_EXTRACTION = 0;
 
 &GetOptions ( 'help|h' => \$help_flag,
               'trans_fasta=s' => \$trans_fasta,
@@ -52,6 +55,7 @@ my $min_FFPM;
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
               'output_prefix=s' => \$output_prefix,
               'min_FFPM=f' => \$min_FFPM,
+              'skip_read_extraction' => \$SKIP_READ_EXTRACTION,
     );
 
 if ($help_flag) {
@@ -121,39 +125,48 @@ main: {
     
     print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: " . scalar(keys %fusion_pair_read_counts) . " fusion pairs involving " . scalar(keys %chims) . " reads.\n";
     
-    open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
+    unless ($SKIP_READ_EXTRACTION) {
+    
+        open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
         
-    my $fasta_reader = new Fasta_reader($trans_fasta);
-
-    my $read_counter = 0;
-    while (my $seq_obj = $fasta_reader->next()) {
+        my $fasta_reader = new Fasta_reader($trans_fasta);
         
-        $read_counter += 1;
-
-        my $accession = $seq_obj->get_accession();
-        
-        if (exists $chims{$accession}) {
+        my $read_counter = 0;
+        while (my $seq_obj = $fasta_reader->next()) {
             
-            my $sequence = $seq_obj->get_sequence();
+            $read_counter += 1;
             
-            print $ofh_fasta ">$accession\n$sequence\n";
+            my $accession = $seq_obj->get_accession();
             
-            delete $chims{$accession};
-
+            if (exists $chims{$accession}) {
+                
+                my $sequence = $seq_obj->get_sequence();
+                
+                print $ofh_fasta ">$accession\n$sequence\n";
+                
+                delete $chims{$accession};
+                
+            }
         }
-    }
-    close $ofh_fasta;
+        close $ofh_fasta;
+        
     
-    
-    unless ($read_counter == $TOTAL_READS) {
-        die "Error, $read_counter != $TOTAL_READS, so mismatch between read counting results. (bug) ";
-    }
-    
+        unless ($read_counter == $TOTAL_READS) {
+            die "Error, $read_counter != $TOTAL_READS, so mismatch between read counting results. (bug) ";
+        }
+        
+        if (%chims) {
+            die "ERROR, missing sequences for reads: " . Dumper(\%chims);
+        }
+                
+        # store the total number of reads.
+        open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
+        print $ofh "$read_counter\n";
+        close $ofh;
 
-    if (%chims) {
-        die "ERROR, missing sequences for reads: " . Dumper(\%chims);
-    }
-
+    } # end unless skip read extraction
+    
+    
     # write the fusion listing
     open(my $ofh_FI_list, ">$output_prefix.FI_listing") or die $!;
     foreach my $fusion_pair (sort {$fusion_pair_read_counts{$b} <=> $fusion_pair_read_counts{$a}} keys %fusion_pair_read_counts) {
@@ -161,11 +174,6 @@ main: {
     }
     close $ofh_FI_list;
 
-    # store the total number of reads.
-    open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
-    print $ofh "$read_counter\n";
-    close $ofh;
-    
 
     print STDERR "-done. See files: $output_prefix.transcripts.fa and $output_prefix.FI_listing\n";
 

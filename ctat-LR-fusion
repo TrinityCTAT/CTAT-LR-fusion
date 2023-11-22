@@ -356,7 +356,11 @@ main: {
         . " --max_exon_delta $MAX_EXON_DELTA "
         . " --min_FFPM $MIN_FFPM "
         . " --output_prefix $chim_candidates_output_prefix";
-    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.ok"));
+    if ($CHIM_CANDIDATES_ONLY) {
+        $cmd .= " --skip_read_extraction ";
+    }
+    
+    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
 
     $pipeliner->run();
 
