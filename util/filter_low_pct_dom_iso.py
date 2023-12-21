@@ -49,11 +49,6 @@ def main():
 
     retained_fusions = data[ data['above_frac_dom_iso' ] ]  
 
-    # sort descending by long read support
-    
-    filtered_out_fusions = filtered_out_fusions.sort_values(by=['num_LR'], ascending=False)
-
-    retained_fusions = retained_fusions.sort_values(by=['num_LR'], ascending=False)
 
     # retain any with Illumina read support
     if "FFPM" in filtered_out_fusions.columns.tolist():
@@ -63,6 +58,12 @@ def main():
         if num_recovered_fusions > 0:
             retained_fusions = pd.concat([retained_fusions, recovered_FI_fusions])
             filtered_out_fusions = filtered_out_fusions[~ (filtered_out_fusions["FFPM"] > 0) ] 
+
+
+
+    # sort descending by long read support
+    filtered_out_fusions = filtered_out_fusions.sort_values(by=['num_LR'], ascending=False)
+    retained_fusions = retained_fusions.sort_values(by=['num_LR'], ascending=False)
 
             
     filtered_out_fusions.to_csv(fusions_output_filename + ".removed_below_min_frac_dom_iso", sep="\t", index=False, quoting=csv.QUOTE_NONE) 
