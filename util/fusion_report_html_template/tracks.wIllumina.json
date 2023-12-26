@@ -1,0 +1,65 @@
+[
+  {
+    "label": "ref_annot",
+    "url": "igv.annot.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "format": "bed"
+  },
+  {
+    "label": "Pfam",
+    "url": "igv.pfam.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "color": "orange",
+    "format": "bed"
+  },
+  {
+    "label": "SeqSimilar",
+    "url": "igv.seqsimilar.bed",
+    "displayMode": "SQUISHED",
+    "order": 10,
+    "type": "annotation",
+    "color": "gray",
+    "format": "bed"
+  },
+  {
+    "url": "igv.LR.sorted.bam",
+    "label": "Long_Read_Alignments",
+    "type": "alignment",
+    "format": "bam",
+    "height": 500,
+    "showCoverage": false,
+    "visibilityWindow": -1,
+    "order": 35
+  },
+  {
+    "url": "igv.LR.breakoint.roi.bed",
+    "type": "roi",
+    "color": "rgba(94,255,1,0.25)",
+    "format": "bed"
+  },
+  {
+    "url": "igv.illumina.junction_reads.sorted.bam",
+    "label": "FI-JuncReads",
+    "type": "alignment",
+    "format": "bam",
+    "height": 200,
+    "showCoverage": false,
+    "visibilityWindow": -1,
+    "order": 55
+  },
+  {
+    "url": "igv.illumina.spanning_frags.sorted.bam",
+    "label": "FI-SpanReads",
+    "type": "alignment",
+    "format": "bam",
+    "height": 200,
+    "showCoverage": false,
+    "visibilityWindow": -1,
+    "order": 65
+  }
+]
+
