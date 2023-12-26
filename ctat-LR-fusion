@@ -722,7 +722,7 @@ sub include_IGV_REPORTS {
     #$pipeliner->add_commands(new Command($cmd, "fusion_reports_html.ok"));
     
     my $tracks_json_file = "$UTILDIR/fusion_report_html_template/tracks.json";
-    if (-e  $FI_junction_sam  && -e -e $FI_spanning_sam ) {
+    if ( -e $FI_junction_sam  && -e $FI_spanning_sam ) {
         $tracks_json_file = "$UTILDIR/fusion_report_html_template/tracks.wIllumina.json";
     }
     
