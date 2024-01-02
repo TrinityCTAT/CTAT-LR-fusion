@@ -1,3 +1,11 @@
+# ctat-LR-fusion v0.12.0 Jan 02, 2024
+-  igv html working with long and short reads together
+-  results sorted by descending countws of supporting reads
+- in combined long/short mode, retain any fusion calls with illumina reads that meet the min read requirements regardless of dominant isoform fraction results
+- added option  --chim_candidates_only to just get the initial list of chimeric candidate
+
+
+
 # ctat-LR-fusion v0.11.0 Oct 12, 2023
 - leaner on disk space usage by sam->bam streamed
 - include igv files bundle as output
