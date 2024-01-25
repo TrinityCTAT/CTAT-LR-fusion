@@ -38,9 +38,6 @@ __EOUSAGE__
     ;
 
 
-
-
-
 my $trans_fasta;
 my $chims_described;
 my $MAX_EXON_DELTA;
@@ -114,69 +111,75 @@ main: {
         die "Error, could not count number of reads from file: $trans_fasta (shouldnt happen....)";
     }
     
-    my %fusion_pair_read_counts;
-    my %fusion_pair_to_read_names;
     
-    my %chims = &parse_chims($chims_described, $MAX_EXON_DELTA, \%fusion_pair_read_counts, \%fusion_pair_to_read_names);
+    my @fusion_candidates = &parse_chims($chims_described);
+    
+    @fusion_candidates = reverse sort {$a->{num_reads} <=> $b->{num_reads}} @fusion_candidates;
+    
+    my $prelim_candidates_summary_outfile = "$output_prefix.preliminary_candidates_info";
+    &write_candidates_summary($prelim_candidates_summary_outfile, \@fusion_candidates);
+        
+    @fusion_candidates = &filter_chims(\@fusion_candidates, $TOTAL_READS, $min_FFPM, $MAX_EXON_DELTA);
+    
+    
 
-    print STDERR "Pre-FFPM-filtering of prelim phase-1 candidates: " . scalar(keys %fusion_pair_read_counts) . " fusion pairs involving " . scalar(keys %chims) . " reads.\n";
     
-    &filter_chims_via_FFPM(\%chims, \%fusion_pair_read_counts, \%fusion_pair_to_read_names, $TOTAL_READS, $min_FFPM);
     
-    print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: " . scalar(keys %fusion_pair_read_counts) . " fusion pairs involving " . scalar(keys %chims) . " reads.\n";
+    # store the total number of reads.
+    open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
+    print $ofh "$TOTAL_READS\n";
+    close $ofh;
     
-    unless ($SKIP_READ_EXTRACTION) {
     
-        open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
-        
-        my $fasta_reader = new Fasta_reader($trans_fasta);
-        
-        my $read_counter = 0;
-        while (my $seq_obj = $fasta_reader->next()) {
-            
-            $read_counter += 1;
-            
-            my $accession = $seq_obj->get_accession();
-            
-            if (exists $chims{$accession}) {
-                
-                my $sequence = $seq_obj->get_sequence();
-                
-                print $ofh_fasta ">$accession\n$sequence\n";
-                
-                delete $chims{$accession};
-                
+    my $num_fusion_candidates = scalar(@fusion_candidates);
+    my $num_fusion_candidate_reads = 0;
+    my %reads_want;
+    foreach my $fusion_candidate (@fusion_candidates) {
+        $num_fusion_candidate_reads += $fusion_candidate->{num_reads};
+        unless($SKIP_READ_EXTRACTION) {
+            foreach my $read (@{$fusion_candidate->{read_names}}) {
+                $reads_want{$read} = 1;
             }
         }
-        close $ofh_fasta;
-        
-    
-        unless ($read_counter == $TOTAL_READS) {
-            die "Error, $read_counter != $TOTAL_READS, so mismatch between read counting results. (bug) ";
-        }
-        
-        if (%chims) {
-            die "ERROR, missing sequences for reads: " . Dumper(\%chims);
-        }
-                
-        # store the total number of reads.
-        open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
-        print $ofh "$read_counter\n";
-        close $ofh;
-
-    } # end unless skip read extraction
-    
-    
-    # write the fusion listing
-    open(my $ofh_FI_list, ">$output_prefix.FI_listing") or die $!;
-    foreach my $fusion_pair (sort {$fusion_pair_read_counts{$b} <=> $fusion_pair_read_counts{$a}} keys %fusion_pair_read_counts) {
-        print $ofh_FI_list "$fusion_pair\t$fusion_pair_read_counts{$fusion_pair}\n";
     }
-    close $ofh_FI_list;
+    
+    print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs involving $num_fusion_candidate_reads reads.\n";
+
+    &write_candidates_summary("$output_prefix.FI_listing", \@fusion_candidates);
 
 
+    if ($SKIP_READ_EXTRACTION) {
+        print STDERR "-skipping read extraction and stopping here. See prelim candidates: $output_prefix.FI_listing\n\n";
+        exit(0);
+    }
+
+    open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
+    
+    my $fasta_reader = new Fasta_reader($trans_fasta);
+    
+    
+    while (my $seq_obj = $fasta_reader->next()) {
+            
+        my $accession = $seq_obj->get_accession();
+        
+        if (exists $reads_want{$accession}) {
+            
+            my $sequence = $seq_obj->get_sequence();
+            
+            print $ofh_fasta ">$accession\n$sequence\n";
+            
+            delete $reads_want{$accession};
+            
+        }
+    }
+    close $ofh_fasta;
+    
+    if (%reads_want) {
+        confess "Error, missing some reads during extraction: " . Dumper(\%reads_want);
+    }
+    
     print STDERR "-done. See files: $output_prefix.transcripts.fa and $output_prefix.FI_listing\n";
-
+        
     exit(0);
         
 }
@@ -186,10 +189,10 @@ main: {
 
 ####
 sub parse_chims {
-    my ($chims_described_file, $MAX_EXON_DELTA, $fusion_pair_read_counts_href, $fusion_pair_to_read_names_href) = @_;
-
-    my %chims;
+    my ($chims_described_file) = @_;
     
+    my %fusion_pairs;
+
     open (my $fh, $chims_described_file) or die $!;
     while (<$fh>) {
         if (/^\#/) { next; } # header or comment
@@ -200,7 +203,12 @@ sub parse_chims {
         
         my $trans_acc = $x[0];
         my $fusion_info = $x[3];
-
+        
+        ## No mitochondrial targets
+        if ($fusion_info =~ /chrM:/) {
+            next;
+        }
+        
         my ($geneA, $deltaA, $trans_brkptA, 
             $chrA_n_coordA,
             $geneB, $deltaB, $trans_brkptB, 
@@ -208,40 +216,98 @@ sub parse_chims {
             $fusion_name) = split(/;/, $fusion_info);
 
 
-	unless ($deltaA <= $MAX_EXON_DELTA && $deltaB <= $MAX_EXON_DELTA) { next; }
-	
-        my $brkpt_range = join("-", sort ($trans_brkptA, $trans_brkptB));
         
-        push (@{$chims{$trans_acc}}, { line => $line,
-                                       brkpt_range => $brkpt_range,
-              }
-            );
-
-        $fusion_pair_read_counts_href->{$fusion_name}++;
-        push (@{$fusion_pair_to_read_names_href->{$fusion_name}}, $trans_acc);
+        my $fusion_info_struct = $fusion_pairs{$fusion_name};
+        
+        if (! defined $fusion_info_struct) {
+            
+            # init struct
+            $fusion_info_struct = $fusion_pairs{$fusion_name} = { fusion_name => $fusion_name,
+                                                                  deltaA => [],
+                                                                  deltaB => [],
+                                                                  read_names => [],
+                                                                  num_reads => 0 };
+        }
+        
+        
+        push (@{$fusion_info_struct->{deltaA}}, $deltaA);
+        push (@{$fusion_info_struct->{deltaB}}, $deltaB);
+        push (@{$fusion_info_struct->{read_names}}, $trans_acc);
+        $fusion_info_struct->{num_reads}++;
+        
     }
     close $fh;
     
-    return(%chims);
+
+    my @fusion_candidates = values %fusion_pairs;
+
+
+    ## compute_mean_deltas:
+    foreach my $fusion_info_struct (@fusion_candidates) {
+        $fusion_info_struct->{mean_deltaA} = &compute_mean_val(@{$fusion_info_struct->{deltaA}});
+        $fusion_info_struct->{mean_deltaB} = &compute_mean_val(@{$fusion_info_struct->{deltaB}});
+    }
+    
+    
+    return(@fusion_candidates);
+
+}
+
+####
+sub compute_mean_val {
+    my @vals = @_;
+    my $num_vals = scalar @vals;
+    my $sum = 0;
+    foreach my $val (@vals) {
+        $sum += $val;
+    }
+
+    my $mean_val = $sum / $num_vals;
+    
+    return($mean_val);
 }
 
 
 ####
-sub filter_chims_via_FFPM {
-    my ($chims_href, $fusion_pair_read_counts_href, $fusion_pair_to_read_names_href, $TOTAL_READS, $min_FFPM) = @_;
+sub filter_chims {
+    my ($fusion_candidates_aref, $TOTAL_READS, $min_FFPM, $MAX_EXON_DELTA) = @_;
 
-    foreach my $fusion_pair (keys %$fusion_pair_to_read_names_href) {
-        my $read_support = $fusion_pair_read_counts_href->{$fusion_pair};
-        my $ffpm = $read_support / $TOTAL_READS * 1e6;
-        if ($ffpm < $min_FFPM) {
-            ## remove candidates.
-            my @transcripts = @{$fusion_pair_to_read_names_href->{$fusion_pair}};
-            delete $fusion_pair_read_counts_href->{$fusion_pair};
-            foreach my $transcript (@transcripts) {
-                delete $chims_href->{$transcript};
-            }
+
+    my @fusion_candidates;
+    
+    foreach my $fusion_candidate (@$fusion_candidates_aref) {
+        
+        my $num_reads = $fusion_candidate->{num_reads};
+        my $ffpm = $num_reads / $TOTAL_READS * 1e6;
+        
+        if ($ffpm >= $min_FFPM && (
+                ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA)
+                ||
+                $num_reads > 1 )
+            ) {
+            push(@fusion_candidates, $fusion_candidate);
         }
     }
     
+    return(@fusion_candidates);
+
+}
+
+
+####
+sub write_candidates_summary {
+    my ($prelim_candidates_summary_outfile, $fusion_candidates_aref) = @_;
+
+    open(my $ofh, ">$prelim_candidates_summary_outfile") or die $!;
+    print $ofh join("\t", "#FusionName", "mean_deltaA", "mean_deltaB", "num_reads") . "\n";
+    foreach my $fusion_info_struct (@$fusion_candidates_aref) {
+        print $ofh join("\t", $fusion_info_struct->{fusion_name}, 
+                        int($fusion_info_struct->{mean_deltaA} + 0.5),
+                        int($fusion_info_struct->{mean_deltaB} + 0.5),
+                        $fusion_info_struct->{num_reads}) . "\n";
+    }
+
+    close $ofh;
+
     return;
 }
