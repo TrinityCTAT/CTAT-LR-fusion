@@ -280,10 +280,16 @@ sub filter_chims {
         my $num_reads = $fusion_candidate->{num_reads};
         my $ffpm = $num_reads / $TOTAL_READS * 1e6;
         
-        if ($ffpm >= $min_FFPM && (
-                ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA)
+        if ($ffpm >= $min_FFPM
+            &&
+            (
+             # deltas within range on both sides
+             ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA)
                 ||
-                $num_reads > 1 )
+
+             # deltas within range on either side but need more than one read as evidence.
+                ( ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA || $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA) &&  $num_reads > 1 )
+              )
             ) {
             push(@fusion_candidates, $fusion_candidate);
         }
