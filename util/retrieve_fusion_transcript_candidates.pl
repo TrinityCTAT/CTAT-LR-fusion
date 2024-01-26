@@ -12,6 +12,7 @@ use Process_cmd;
 use Pipeliner;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use Data::Dumper;
+use List::Util qw(min);
 
 my $usage = <<__EOUSAGE__;
 
@@ -156,20 +157,13 @@ main: {
     open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
     
     my $fasta_reader = new Fasta_reader($trans_fasta);
-    
-    
     while (my $seq_obj = $fasta_reader->next()) {
-            
         my $accession = $seq_obj->get_accession();
-        
+
         if (exists $reads_want{$accession}) {
-            
             my $sequence = $seq_obj->get_sequence();
-            
             print $ofh_fasta ">$accession\n$sequence\n";
-            
             delete $reads_want{$accession};
-            
         }
     }
     close $ofh_fasta;
@@ -246,6 +240,13 @@ sub parse_chims {
     foreach my $fusion_info_struct (@fusion_candidates) {
         $fusion_info_struct->{mean_deltaA} = &compute_mean_val(@{$fusion_info_struct->{deltaA}});
         $fusion_info_struct->{mean_deltaB} = &compute_mean_val(@{$fusion_info_struct->{deltaB}});
+
+        $fusion_info_struct->{median_deltaA} = &compute_median_val(@{$fusion_info_struct->{deltaA}});
+        $fusion_info_struct->{median_deltaB} = &compute_median_val(@{$fusion_info_struct->{deltaB}});
+
+        $fusion_info_struct->{min_deltaA} = min(@{$fusion_info_struct->{deltaA}});
+        $fusion_info_struct->{min_deltaB} = min(@{$fusion_info_struct->{deltaB}});
+        
     }
     
     
@@ -267,6 +268,26 @@ sub compute_mean_val {
     return($mean_val);
 }
 
+####
+sub compute_median_val {
+    my @vals = @_;
+    my $num_vals = scalar @vals;
+
+    if ($num_vals == 1) {
+        return($vals[0]);
+    }
+
+    my $midpt = int($num_vals/2);
+    if ($num_vals % 2 == 0) {
+
+        return(compute_mean_val($vals[$midpt-1], $vals[$midpt]));
+    }
+    else {
+        return($vals[$midpt]);
+    }
+    
+}
+
 
 ####
 sub filter_chims {
@@ -284,11 +305,11 @@ sub filter_chims {
             &&
             (
              # deltas within range on both sides
-             ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA)
+             ($fusion_candidate->{median_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{median_deltaB} <= $MAX_EXON_DELTA)
                 ||
 
              # deltas within range on either side but need more than one read as evidence.
-                ( ($fusion_candidate->{mean_deltaA} <= $MAX_EXON_DELTA || $fusion_candidate->{mean_deltaB} <= $MAX_EXON_DELTA) &&  $num_reads > 1 )
+                ( ($fusion_candidate->{median_deltaA} <= $MAX_EXON_DELTA || $fusion_candidate->{median_deltaB} <= $MAX_EXON_DELTA) &&  $num_reads > 1 )
               )
             ) {
             push(@fusion_candidates, $fusion_candidate);
@@ -305,11 +326,25 @@ sub write_candidates_summary {
     my ($prelim_candidates_summary_outfile, $fusion_candidates_aref) = @_;
 
     open(my $ofh, ">$prelim_candidates_summary_outfile") or die $!;
-    print $ofh join("\t", "#FusionName", "mean_deltaA", "mean_deltaB", "num_reads") . "\n";
+    print $ofh join("\t", "#FusionName",
+                    "median_deltaA", "median_deltaB",
+                    "min_deltaA", "min_deltaB",
+                    "mean_deltaA", "mean_deltaB",
+                    "num_reads") . "\n";
+
     foreach my $fusion_info_struct (@$fusion_candidates_aref) {
+
         print $ofh join("\t", $fusion_info_struct->{fusion_name}, 
+
+                        int($fusion_info_struct->{median_deltaA} + 0.5),
+                        int($fusion_info_struct->{median_deltaB} + 0.5),
+
+                        $fusion_info_struct->{min_deltaA},
+                        $fusion_info_struct->{min_deltaB},
+                        
                         int($fusion_info_struct->{mean_deltaA} + 0.5),
                         int($fusion_info_struct->{mean_deltaB} + 0.5),
+
                         $fusion_info_struct->{num_reads}) . "\n";
     }
 
