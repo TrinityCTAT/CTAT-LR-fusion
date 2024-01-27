@@ -12,7 +12,7 @@ use Process_cmd;
 use Pipeliner;
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
 use Data::Dumper;
-use List::Util qw(min);
+use List::Util qw(min max);
 
 my $usage = <<__EOUSAGE__;
 
@@ -46,6 +46,9 @@ my $help_flag;
 my $output_prefix;
 my $min_FFPM;
 my $SKIP_READ_EXTRACTION = 0;
+
+
+my $ALT_MAX_EXON_DELTA = 1000;
 
 &GetOptions ( 'help|h' => \$help_flag,
               'trans_fasta=s' => \$trans_fasta,
@@ -300,16 +303,19 @@ sub filter_chims {
         
         my $num_reads = $fusion_candidate->{num_reads};
         my $ffpm = $num_reads / $TOTAL_READS * 1e6;
+
+        my $min_alt_exon_delta = min($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
+        my $max_alt_exon_delta = max($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
         
         if ($ffpm >= $min_FFPM
             &&
             (
              # deltas within range on both sides
-             ($fusion_candidate->{median_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{median_deltaB} <= $MAX_EXON_DELTA)
+             ($fusion_candidate->{min_deltaA} <= $MAX_EXON_DELTA && $fusion_candidate->{min_deltaB} <= $MAX_EXON_DELTA)
                 ||
 
              # deltas within range on either side but need more than one read as evidence.
-                ( ($fusion_candidate->{median_deltaA} <= $MAX_EXON_DELTA || $fusion_candidate->{median_deltaB} <= $MAX_EXON_DELTA) &&  $num_reads > 1 )
+                ( ($min_alt_exon_delta <= $MAX_EXON_DELTA && $max_alt_exon_delta <= $ALT_MAX_EXON_DELTA) &&  $num_reads > 1 )
               )
             ) {
             push(@fusion_candidates, $fusion_candidate);
