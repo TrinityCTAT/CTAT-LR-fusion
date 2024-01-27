@@ -152,10 +152,10 @@ RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.
     
 RUN pip install pandas
 
-RUN pip install requests igv-reports==1.10.0
+RUN pip install requests igv-reports==1.11.0
 
-ENV ctat_LR_fusion_version 0.13.0-predev5
-ENV CTAT_LR_FUSION_CO 32716b934d258678158ac0a649468ff2105fd6d8
+ENV ctat_LR_fusion_version 0.13.0
+ENV CTAT_LR_FUSION_CO ead0cec3a0de0a23a85ff9bdcfebb692495923de
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
