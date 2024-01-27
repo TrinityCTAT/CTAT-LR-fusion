@@ -376,6 +376,13 @@ main: {
     }
     
     
+    ##############################################################################################################
+    ## start new checkpoints for phase 2 involving FusionInspector like approach for precise breakpoint resolution
+    
+    $pipeliner = new Pipeliner(-verbose => 2,
+                                  -checkpoint_dir => "$intermediates_dir/__checkpts_phase2",
+        );
+    
     # create FI contigs.
     $cmd = "$FI_UTILDIR/fusion_pair_to_mini_genome_join.pl "
         . " --fusions $FI_listing "

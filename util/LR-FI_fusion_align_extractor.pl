@@ -108,7 +108,7 @@ main: {
                 
                 my ($break_left, $break_right) = &get_breakpoint_coords(\@LR_coordsets, $geneA_max, $geneB_min);
                 
-                $LR_fusion_trans_ids{$LR_acc} = "$scaffold:$break_left-$break_right";
+                $LR_fusion_trans_ids{$LR_acc}->{"$scaffold:$break_left-$break_right"} = 1; # allow for multiple paralog breakpoint support.
             }
 
         }
@@ -319,11 +319,13 @@ sub report_LR_fusions {
     
     my %scaff_breakpoint_to_read_support;
     foreach my $LR_id (keys %$LR_ids_href) {
-        my $scaff_breakpoint = $LR_ids_href->{$LR_id};
-        print "#LRFusionTranscript:\t$LR_id\t$scaff_breakpoint\n";
-        push (@{$scaff_breakpoint_to_read_support{$scaff_breakpoint}}, $LR_id);
+        my @scaff_breakpoints = keys %{$LR_ids_href->{$LR_id}};
+        foreach my $scaff_breakpoint (@scaff_breakpoints) {
+            print "#LRFusionTranscript:\t$LR_id\t$scaff_breakpoint\n";
+            push (@{$scaff_breakpoint_to_read_support{$scaff_breakpoint}}, $LR_id);
+        }
     }
-        
+    
     ## generate fusion breakpoint summary report
     my @fusion_structs;
     foreach my $breakpoint (keys %scaff_breakpoint_to_read_support) {
