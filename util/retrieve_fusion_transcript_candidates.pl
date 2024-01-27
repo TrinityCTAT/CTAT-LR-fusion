@@ -223,7 +223,9 @@ sub parse_chims {
                                                                   deltaA => [],
                                                                   deltaB => [],
                                                                   read_names => [],
-                                                                  num_reads => 0 };
+                                                                  num_reads => 0,
+                                                                  trans_brkpt_delta => [],
+            };
         }
         
         
@@ -231,6 +233,10 @@ sub parse_chims {
         push (@{$fusion_info_struct->{deltaB}}, $deltaB);
         push (@{$fusion_info_struct->{read_names}}, $trans_acc);
         $fusion_info_struct->{num_reads}++;
+
+        my $trans_brkpt_delta = abs($trans_brkptB - $trans_brkptA);
+        push(@{$fusion_info_struct->{trans_brkpt_delta}}, $trans_brkpt_delta);
+        
         
     }
     close $fh;
@@ -241,14 +247,15 @@ sub parse_chims {
 
     ## compute_mean_deltas:
     foreach my $fusion_info_struct (@fusion_candidates) {
-        $fusion_info_struct->{mean_deltaA} = &compute_mean_val(@{$fusion_info_struct->{deltaA}});
-        $fusion_info_struct->{mean_deltaB} = &compute_mean_val(@{$fusion_info_struct->{deltaB}});
 
         $fusion_info_struct->{median_deltaA} = &compute_median_val(@{$fusion_info_struct->{deltaA}});
         $fusion_info_struct->{median_deltaB} = &compute_median_val(@{$fusion_info_struct->{deltaB}});
 
         $fusion_info_struct->{min_deltaA} = min(@{$fusion_info_struct->{deltaA}});
         $fusion_info_struct->{min_deltaB} = min(@{$fusion_info_struct->{deltaB}});
+
+        $fusion_info_struct->{median_trans_brkpt_delta} = &compute_median_val(@{$fusion_info_struct->{trans_brkpt_delta}});
+        $fusion_info_struct->{min_trans_brkpt_delta} = min(@{$fusion_info_struct->{trans_brkpt_delta}});
         
     }
     
@@ -331,16 +338,27 @@ sub filter_chims {
 sub write_candidates_summary {
     my ($prelim_candidates_summary_outfile, $fusion_candidates_aref) = @_;
 
+    
+    
     open(my $ofh, ">$prelim_candidates_summary_outfile") or die $!;
-    print $ofh join("\t", "#FusionName",
-                    "median_deltaA", "median_deltaB",
-                    "min_deltaA", "min_deltaB",
-                    "mean_deltaA", "mean_deltaB",
-                    "num_reads") . "\n";
+    open(my $ofh_wreads, ">$prelim_candidates_summary_outfile.with_reads") or die $!;
+    
+    my $header = join("\t", "#FusionName",
+                      "median_deltaA", "median_deltaB",
+                      "min_deltaA", "min_deltaB",
+                      "median_trans_brkpt_delta",
+                      "min_trans_brkpt_delta",
+                      "num_reads");
+    
+    print $ofh "$header\n";
+    print $ofh_wreads "$header\treads\n";
+
+        
 
     foreach my $fusion_info_struct (@$fusion_candidates_aref) {
 
-        print $ofh join("\t", $fusion_info_struct->{fusion_name}, 
+
+            my $outline = join("\t", $fusion_info_struct->{fusion_name}, 
 
                         int($fusion_info_struct->{median_deltaA} + 0.5),
                         int($fusion_info_struct->{median_deltaB} + 0.5),
@@ -348,10 +366,18 @@ sub write_candidates_summary {
                         $fusion_info_struct->{min_deltaA},
                         $fusion_info_struct->{min_deltaB},
                         
-                        int($fusion_info_struct->{mean_deltaA} + 0.5),
-                        int($fusion_info_struct->{mean_deltaB} + 0.5),
+                        int($fusion_info_struct->{median_trans_brkpt_delta} + 0.5),
+                        $fusion_info_struct->{min_trans_brkpt_delta},
 
-                        $fusion_info_struct->{num_reads}) . "\n";
+                        $fusion_info_struct->{num_reads});
+            
+            print $ofh "$outline\n";
+
+            my $reads = join(",", @{$fusion_info_struct->{read_names}});
+
+            print $ofh_wreads "$outline\t$reads\n";
+            
+
     }
 
     close $ofh;
