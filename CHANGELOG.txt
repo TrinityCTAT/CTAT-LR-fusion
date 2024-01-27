@@ -1,3 +1,12 @@
+# ctat-LR-fusion v0.13.0 Jan 27, 2024
+- allow for paralog alignments to be included
+- pursue additional candidates where one breakpoint is initially <= MAX_EXON_DELTA and the other is within 1kb and there's multiple reads suggesting it.
+- with multiple reads suggesting fusion, use the min value for the deltas in phase 1 for candidate selection.
+- reorganization of preliminary candidate intermediate output formatting for easier tracking and troubleshooting of findings.
+- igv-reports v1.11.0 which has default ordering of fusions according to descending read support in the html.
+
+
+
 # ctat-LR-fusion v0.12.0 Jan 02, 2024
 -  igv html working with long and short reads together
 -  results sorted by descending countws of supporting reads
