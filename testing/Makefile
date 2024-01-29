@@ -14,6 +14,9 @@ test_excl_shortreads:
 test_incl_shortreads:
 	../ctat-LR-fusion -T transcripts.fa --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.incl_short --vis
 
+test_incl_shortreads_SEonly:
+	../ctat-LR-fusion -T transcripts.fa --left_fq reads_1.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.incl_short_SEonly --vis
+
 
 
 test_longOnly_fqgz:

@@ -96,7 +96,7 @@ RUN wget https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VER
 
 ## Samtools
 WORKDIR $SRC
-ENV SAMTOOLS_VERSION 1.13
+ENV SAMTOOLS_VERSION 1.9
 RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 && \
     tar xvf samtools-${SAMTOOLS_VERSION}.tar.bz2 && \
     cd samtools-${SAMTOOLS_VERSION} && \
