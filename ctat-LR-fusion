@@ -11,8 +11,8 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v0.13.0";
-#my $VERSION = "DEVEL";
+#my $VERSION = "v0.13.0";
+my $VERSION = "DEVEL";
 
 my $CPU = 4;
 my $output_directory = "ctat_LR_fusion_outdir";
@@ -350,6 +350,7 @@ main: {
     my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
     my $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa";
     my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
+    my $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl "
         . " --trans_fasta $transcripts_file "
         . " --chims_described $chims_described_outfile "
@@ -362,20 +363,48 @@ main: {
     
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
 
+
+    # annotate candidates
+    $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $FI_listing > ${FI_listing}.wAnnot";
+    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.FI_listing.annotate.ok"));
+
+    $FI_listing = "$FI_listing.wAnnot";
+
+    
+    
+    unless ($NO_ANNOTATION_FILTER) {
+        
+        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $FI_listing --genome_lib_dir $genome_lib_dir --custom_exclusions NEIGHBORS_OVERLAP ";
+        $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
+        
+        $FI_listing = "$FI_listing.annot_filter.pass";
+        
+    }
+        
     $pipeliner->run();
 
     if ($CHIM_CANDIDATES_ONLY) {
-        print STDERR "** --chim_candidates_only flag set, stopping here now.\n\n";
+        print STDERR "** --chim_candidates_only flag set, stopping here now. See: $FI_listing \n\n";
         exit(0);
     }
     
 
-    if (-e $FI_listing && (-s $FI_listing == 0)) {
+    if (-e $FI_listing && (&count_num_fusions($FI_listing) == 0)) {
         print STDERR "Sorry, no chimeric candidates to pursue. Stopping here.\n";
         exit(0);
     }
+
+
+    ## update reads fasta
+    $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
+    $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
     
+    $chim_candidates_fasta = "$chim_candidates_fasta.revised.fasta";
+
+
+    $pipeliner->run();
     
+        
     ##############################################################################################################
     ## start new checkpoints for phase 2 involving FusionInspector like approach for precise breakpoint resolution
     
@@ -497,13 +526,6 @@ main: {
     
     $fusions_filename = "$fusions_filename.post_blast_and_promiscuity_filter";
     
-    unless ($NO_ANNOTATION_FILTER) {
-        
-        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $fusions_filename --genome_lib_dir $genome_lib_dir";
-        $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
-        
-        $fusions_filename = "$fusions_filename.annot_filter.pass";
-    }
 
     # perform final evidence abundance-based filtering.
     unless ($NO_ABUNDANCE_FILTER) {
@@ -768,4 +790,20 @@ sub get_total_read_count {
     }
 
     return($total_read_count);
+}
+
+
+####
+sub count_num_fusions {
+    my ($fusions_filename) = @_;
+
+    my $count = 0;
+    
+    open(my $fh, $fusions_filename) or die "Error, cannot open file: $fusions_filename";
+    while(<$fh>) {
+        if (/^\#/) { next; }
+        if (/\w/) { $count += 1; }
+    }
+
+    return($count);
 }
