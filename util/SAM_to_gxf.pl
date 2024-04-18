@@ -211,8 +211,21 @@ main: {
             @merged_coords = sort {$a->[0]<=>$b->[0]} @merged_coords;
             my $genome_lend = $merged_coords[0]->[0];
             my $genome_rend = $merged_coords[-1]->[1];
-            my $trans_lend = $merged_coords[0]->[2];
-            my $trans_rend = $merged_coords[-1]->[3];
+
+            #  (+) strand:
+            #    1   100    300 400
+            #    1   100    101 201
+
+            # trans indexing
+            #    2   3        2   3
+
+            # (-) strand:
+            #    1   100    300 400
+            #   101  201      1 100
+
+
+            my $trans_lend = ($strand eq '+') ? $merged_coords[0]->[2] : $merged_coords[-1]->[2];
+            my $trans_rend = ($strand eq '+') ? $merged_coords[-1]->[3] : $merged_coords[0]->[3];
             
             print join("\t",
                        $scaff_name,

@@ -1,0 +1,45 @@
+#!/usr/bin/env Rscript
+
+
+main = function () {
+    
+    args<-commandArgs(TRUE)
+    
+    if (length(args) == 0) {
+        stop("require param: ctat-LR-fusion.fusion_predictions.tsv")
+    }
+    
+    
+    dat_filename = args[1]
+    
+    library(tidyverse)
+    library(stringr)
+
+    data = read.csv(dat_filename, header=T, sep="\t", stringsAsFactors=F, com='')
+
+    data = data %>% rename(FusionName = X.FusionName) %>%
+        select(FusionName, LeftGene, LeftBreakpoint, RightGene, RightBreakpoint, SpliceType, LR_accessions) %>%
+        separate_rows(LR_accessions, sep=",") %>%
+        separate_wider_delim(LR_accessions, "^", names=c("cb", "umi", "readname") )
+
+    
+    message(nrow(data))
+    message("excluding duplicate umis")
+    
+    data = data %>% group_by(FusionName, LeftBreakpoint, RightGene, RightBreakpoint, SpliceType, cb) %>%
+        filter(row_number() == 1) %>%
+        ungroup()
+
+    message(nrow(data))
+
+    write.table(data, sep="\t", quote=F, row.names=F)
+        
+    quit(save = "no", status = 0, runLast = FALSE)
+
+    
+}
+
+
+if (length(sys.calls())==0) {
+    main()
+}
