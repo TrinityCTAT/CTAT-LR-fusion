@@ -1,0 +1,8 @@
+version: 1.2
+workflows:
+   - name: ctat_LR_fusion
+     subclass: WDL
+     primaryDescriptorPath: /WDL/ctat_LR_fusion.wdl
+     authors:
+         - name: Brian Haas
+           email: bhaas@broadinstitute.org
