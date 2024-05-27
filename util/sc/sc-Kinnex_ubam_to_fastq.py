@@ -26,6 +26,9 @@ def main():
         read_seq = d['seq']
         quals = d['qual']
 
+        if len(quals) != len(read_seq):
+            quals = "I" * len(read_seq)
+        
         # 10x tag descriptions at:
         # https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/bam#:~:text=Barcoded%20BAM%20Tags,-The%20cellranger%20pipeline%20outputs%20an
 
