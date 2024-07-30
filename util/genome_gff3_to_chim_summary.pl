@@ -25,6 +25,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_per_id <float>        minimum percent identity (default: $min_per_id)
 #
+#
+#  --debug|D                   debug mode, extra verbose
+#
 ######################################################################
 
 
@@ -37,11 +40,13 @@ my $help_flag;
 my $align_gff3_file;
 my $annot_gtf_file;
 
+my $DEBUG = 0;
+
 &GetOptions ( 'h' => \$help_flag,
               'align_gff3=s' => \$align_gff3_file,
               'annot_gtf=s' => \$annot_gtf_file,
               'min_per_id=f' => \$min_per_id,
-              
+              'debug|D' => \$DEBUG,
               );
 
 
@@ -60,6 +65,10 @@ my %interval_trees;
 
 main: {
 
+    ########################
+    ## Parsing reference GTF 
+    ########################
+    
     my %chr_to_gene_coords;
     print STDERR "-parsing $annot_gtf_file\n";
     my $fh;
@@ -111,6 +120,10 @@ main: {
         
     }
     close $fh;
+
+    #########################################
+    ## Build interval tree for exons of genes
+    #########################################
     
     print STDERR "-building interval tree for fast searching of gene overlaps\n";
     ## Build interval trees
@@ -127,7 +140,11 @@ main: {
             $i_tree->insert($gene_id, $lend, $rend);
         }
     }
-    
+
+
+    ######################################
+    ## Parse minimap2 alignments for reads
+    ######################################
     
     my %target_to_aligns;
     print STDERR "-loading alignment data\n";
@@ -163,6 +180,11 @@ main: {
     close $fh;
 
 
+
+    
+    #######################################################
+    ## Map candidate fusion transcripts to gene annotations
+    #######################################################
     
 
     print STDERR "-mapping candidate fusion transcripts to gene annotations.\n";
@@ -182,7 +204,13 @@ main: {
 
         ## create spans
         my @span_ids = keys %{$target_to_aligns{$target}};
-        if (scalar @span_ids < 2) { next; } # only want candidate chimeras
+        if (scalar @span_ids < 2) {
+            if ($DEBUG) {
+                print STDERR "-skipping $target as non chimeric candidate\n";
+            }
+            next;
+
+        } # only want candidate chimeras
         
         my @spans;
         foreach my $span_id (@span_ids) {
@@ -215,7 +243,12 @@ main: {
         
         
         @spans = sort {$a->{range_lend}<=>$b->{range_lend}} @spans; # order spans according to transcript coordinates
-            
+
+
+        if ($DEBUG) {
+            print STDERR "Target $target has spans: " . Dumper(\@spans);
+        }
+        
         my @fusion_preds;
 
 
@@ -243,6 +276,11 @@ main: {
                 my @left_possibilities = &map_to_annotated_exon_junctions($left_align, 'left');
 
                 my @right_possibilities = &map_to_annotated_exon_junctions($right_align, 'right');
+
+                if ($DEBUG) {
+                    print STDERR "Annot mappings: \ttarget $target, left possibilities: " . Dumper(\@left_possibilities) . " and right possibilities: " . Dumper(\@right_possibilities);
+                }
+                
                 
                 foreach my $left_possibility (@left_possibilities) {
 
