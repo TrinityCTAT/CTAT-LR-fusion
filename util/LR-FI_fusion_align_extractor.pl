@@ -27,6 +27,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --snap_dist <int>        :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
 #
+#  --DEBUG | -d             : extra verbose
+# 
 ###########################################################
 
 
@@ -40,7 +42,7 @@ my $FI_gtf_filename;
 my $LR_gff3_filename;
 my $output_prefix;
 my $SNAP_dist;
-
+my $DEBUG = 0;
 
 
 &GetOptions ( 'help|h' => \$help_flag,
@@ -48,16 +50,18 @@ my $SNAP_dist;
               'LR_gff3=s' => \$LR_gff3_filename,
               'output_prefix=s' => \$output_prefix,
               'snap_dist=i' => \$SNAP_dist,
+              'DEBUG|d' => \$DEBUG,
     );
+
 
 if ($help_flag) {
     die $usage;
 }
 
+
 unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) ) {
     die $usage;
 }
-
 
 
 my $DONOR_TYPE = "DONOR";
@@ -90,6 +94,9 @@ main: {
  
         my $geneA_max = max(keys %$geneA_coords_href);
         my $geneB_min = min(keys %$geneB_coords_href);
+
+
+        if ($DEBUG) { print "$scaffold\t$geneA_max\t$geneB_min\n"; }
         
         unless (exists $scaffold_to_LR_coords{$scaffold}) { next; }
 
@@ -107,6 +114,10 @@ main: {
             if ($min_LR_coord < $geneA_max && $max_LR_coord > $geneB_min) { # spans both genes 
                 
                 my ($break_left, $break_right) = &get_breakpoint_coords(\@LR_coordsets, $geneA_max, $geneB_min);
+
+                if ($DEBUG) {
+                    print "BREAKPT: $scaffold $LR_acc ($break_left--$break_right) gene_coords($geneA_max, $geneB_min)\n";
+                }
                 
                 $LR_fusion_trans_ids{$LR_acc}->{"$scaffold:$break_left-$break_right"} = 1; # allow for multiple paralog breakpoint support.
             }
@@ -201,7 +212,6 @@ sub parse_FI_gtf_filename {
         }
         
         
-
         my ($lend, $rend) = ($x[3], $x[4]);
         push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
         
@@ -514,50 +524,68 @@ sub infer_genome_breakpoint_from_local_coord {
     my $struct = $scaffold_orig_coord_info_href->{$break_coord};
     if (defined($struct) && $struct->{splice_junc} eq $SPLICE_SITE_TYPE) {
         my ($chrom, $coord, $orient) = ($struct->{chrom}, $struct->{coord}, $struct->{orient});
-        
-        #print STDERR "-no snap, found ref splice match for $break_coord\n";
+
+        if ($DEBUG) {
+            print STDERR "-no snap, found ref splice match for $break_coord\n";
+        }
         return($break_coord, "$chrom:$coord:$orient", 1);
     }
     else {
         
         # map to closest coordinate.
-        my $smallest_delta = undef;
-        my $closest_struct = undef;
+        my @closest_structs;
+        
         foreach my $struct (@$scaffold_coordinate_mappings_aref) {
             my $contig_coord = $struct->{contig_coord};
             my $delta = $break_coord - $contig_coord;
-            
-            if ( (! defined($smallest_delta)) 
-                 || 
-                 ($closest_struct->{splice_junc} ne $SPLICE_SITE_TYPE && $struct->{splice_junc} eq $SPLICE_SITE_TYPE) # always prefer matching splice junc type
-                 ||
-                 ($closest_struct->{splice_junc} eq $struct->{splice_junc} && abs($delta) < abs($smallest_delta) ) # same splice type but closer.
-                ) {
-                
-                $smallest_delta = $delta;
-                $closest_struct = $struct;
+
+            push (@closest_structs, { struct => $struct,
+                                      delta => $delta,
+                                      abs_delta => abs($delta) } );
+
+        }
+        @closest_structs = sort {$a->{abs_delta}<=>$b->{abs_delta}} @closest_structs;
+
+        my $closest_struct = $closest_structs[0];
+        shift @closest_structs;
+        
+        # keep searching if not a matched splice type
+        if ($closest_struct->{struct}->{splice_junc} ne $SPLICE_SITE_TYPE) {
+            foreach my $other_struct (@closest_structs) {
+                if ($other_struct->{abs_delta} > $SNAP_dist) {
+                    last;
+                }
+                if ($other_struct->{struct}->{splice_junc} eq $SPLICE_SITE_TYPE) {
+                    # take it instead
+                    $closest_struct = $other_struct;
+                    last;
+                }
             }
         }
-
-        my $chrom = $closest_struct->{chrom};
-        my $orient = $closest_struct->{orient};
+        
+        my $chrom = $closest_struct->{struct}->{chrom};
+        my $orient = $closest_struct->{struct}->{orient};
         my $coord;
-        if (abs($smallest_delta) <= $SNAP_dist && $closest_struct->{splice_junc} eq $SPLICE_SITE_TYPE) {
-            $coord = $closest_struct->{coord};
-            my $adj_break = $closest_struct->{contig_coord};
+        if ($closest_struct->{abs_delta} <= $SNAP_dist && $closest_struct->{struct}->{splice_junc} eq $SPLICE_SITE_TYPE) {
+            $coord = $closest_struct->{struct}->{coord};
+            my $adj_break = $closest_struct->{struct}->{contig_coord};
             
-            #print STDERR "Snapping $break_coord -> $adj_break\n";
-            
+            if ($DEBUG) { print STDERR "Snapping $break_coord -> $adj_break\n"; }
+
             return($adj_break, "$chrom:$coord:$orient", 1); # now at splice site
         }
         else {
             if ($orient eq '+') {
-                $coord = $closest_struct->{coord} + $smallest_delta;
+                $coord = $closest_struct->{struct}->{coord} + $closest_struct->{delta};
             }
             else {
-                $coord = $closest_struct->{coord} - $smallest_delta;
+                $coord = $closest_struct->{struct}->{coord} - $closest_struct->{delta};
             }
-            #print STDERR "No snap, here\'s delta info: $chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: $smallest_delta\tcontig_info: " . Dumper($closest_struct);
+
+            if ($DEBUG) { 
+                print STDERR "No snap, here\'s delta info: $chrom:$coord:$orient\tbreak_coord: $break_coord\tsmallest_delta: "
+                    . $closest_struct->{delta} . "\tcontig_info: " . Dumper($closest_struct);
+            }
 
             return($break_coord, "$chrom:$coord:$orient", 0);
         }
