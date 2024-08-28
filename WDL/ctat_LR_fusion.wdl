@@ -14,7 +14,8 @@ workflow ctat_LR_fusion_wf {
        Int min_novel_junction_support = 1
        File? illumina_left_fq
        File? illumina_right_fq
-      
+       String? FI_extra_params
+        
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
        String memory="50G"
@@ -36,7 +37,8 @@ workflow ctat_LR_fusion_wf {
           min_novel_junction_support=min_novel_junction_support,
           illumina_left_fq=illumina_left_fq,
 	      illumina_right_fq=illumina_right_fq,
-
+          FI_extra_params=FI_extra_params,
+         
           docker=docker,
           cpu=cpu,
           memory=memory,
@@ -59,7 +61,8 @@ task CTAT_LR_FUSION_TASK {
        Int min_novel_junction_support
        File? illumina_left_fq
        File? illumina_right_fq
-
+       String? FI_extra_params
+        
        String docker
        Int cpu
        String memory
@@ -89,7 +92,8 @@ task CTAT_LR_FUSION_TASK {
                 --CPU ~{cpu} \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
-                -o ctat_LR_fusion_outdir
+                -o ctat_LR_fusion_outdir \
+                ~{"--FI_extra_params " + FI_extra_params }
 
 
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv
