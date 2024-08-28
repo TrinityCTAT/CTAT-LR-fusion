@@ -69,6 +69,8 @@ my $MIN_FFPM = 0.1;
 
 my $EXAMINE_CODING_EFFECT = 0;
 
+my $FI_extra_params = "";
+
 
 my $usage = <<__EOUSAGE__;
 
@@ -157,6 +159,8 @@ my $usage = <<__EOUSAGE__;
 #  --chim_candidates_only             : stop after first phase of identifying candidates before evaluating them in the second phase.
 #                                                     see chimera candidate listing as: output_dir/fusion_intermediates_dir/chimeric_read_candidates.FI_listing
 #
+#  --FI_extra_params <string>         : extra parameters to give to FusionInspector (eg. "--STAR_xtra_params '--limitBAMsortRAM 61419850732' "
+#
 #
 #  --version                             report version ($VERSION)
 #
@@ -218,7 +222,9 @@ my $extract_fusion_LR_fasta = "";
     
               'chim_candidates_only' => \$CHIM_CANDIDATES_ONLY,
 
-              'examine_coding_effect' => \$EXAMINE_CODING_EFFECT
+              'examine_coding_effect' => \$EXAMINE_CODING_EFFECT,
+
+              'FI_extra_params=s' => \$FI_extra_params, 
               
 );
 
@@ -487,7 +493,11 @@ main: {
         if ($right_fq ne "NA") {
             $cmd .= " --right_fq $right_fq ";
         }
-    
+
+        if ($FI_extra_params ) {
+            $cmd .= " $FI_extra_params";
+        }
+        
         $pipeliner->add_commands(new Command($cmd, "FI_short_reads.ok"));
     
         my $merged_fusions_filename = "$intermediates_dir/mm2_and_FI_fusions_merged.tsv";
