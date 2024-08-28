@@ -67,6 +67,8 @@ my $CHIM_CANDIDATES_ONLY = 0; # force stop after phase 1
 
 my $MIN_FFPM = 0.1;
 
+my $EXAMINE_CODING_EFFECT = 0;
+
 
 my $usage = <<__EOUSAGE__;
 
@@ -144,6 +146,11 @@ my $usage = <<__EOUSAGE__;
 #  --max_IGV_LR_per_fusion <int>   : for the --vis, select a max number of LR per fusion for the html. (default: $max_IGV_LR_per_fusion)
 #                                          (more reads means longer browser load times)
 #
+#  --examine_coding_effect         : explore impact of fusions on coding sequences (guesses only based on the fusion breakpoint and
+#                                                                                   ref annotations, prioritizing in-frame over out-of-frame 
+#                                                                                   coding isoform fusion pairs)
+#                                 
+#
 #  --extract_fusion_LR_fasta <string>  : extract the long reads that serve as evidence to the fusion and write them to the corresponding file.  
 #                                        The fusion name is prefixed to the read name like so:  fusion_name|read_name
 #
@@ -210,6 +217,8 @@ my $extract_fusion_LR_fasta = "";
               'min_FFPM=f' => \$MIN_FFPM,
     
               'chim_candidates_only' => \$CHIM_CANDIDATES_ONLY,
+
+              'examine_coding_effect' => \$EXAMINE_CODING_EFFECT
               
 );
 
@@ -558,19 +567,31 @@ main: {
         $fusions_filename = "$fusions_filename.filt_by_min_dom_iso_frac";
     }
         
+
+    if ($EXAMINE_CODING_EFFECT) {
+
+        my $fusions_w_coding_effect_file = "$fusions_filename.w_coding_effect";
+        
+        $cmd = "$FindBin::Bin/FusionAnnotator/util/fusion_to_coding_region_effect.pl  --fusions $fusions_filename --genome_lib_dir $genome_lib_dir > $fusions_w_coding_effect_file";
+        $pipeliner->add_commands(new Command($cmd, "coding_eff.ok"));
+
+        $fusions_filename = $fusions_w_coding_effect_file;
+        
+    }
+    
     
     ############################################
     # Copy final fusions file as the deliverable:
     
     $cmd = "cp $fusions_filename $output_directory/ctat-LR-fusion.fusion_predictions.tsv";
-    $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.ok"));
+    $pipeliner->add_commands(new Command($cmd, "copy_final_predictions_to_deliverable.$EXAMINE_CODING_EFFECT.ok"));
 
 
     ## add abridged version w/o all the evidence read names.
     $cmd = "$FI_UTILDIR/column_exclusions.pl $output_directory/ctat-LR-fusion.fusion_predictions.tsv "
         . " LR_accessions,JunctionReads,SpanningFrags,CounterFusionLeftReads,CounterFusionRightReads "
         . " > $output_directory/ctat-LR-fusion.fusion_predictions.abridged.tsv";
-    $pipeliner->add_commands(new Command($cmd, "abridged_final_preds.ok"));
+    $pipeliner->add_commands(new Command($cmd, "abridged_final_preds.$EXAMINE_CODING_EFFECT.ok"));
     
 
 

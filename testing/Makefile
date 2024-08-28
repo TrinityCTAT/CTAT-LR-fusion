@@ -3,7 +3,7 @@ simple: test_excl_shortreads
 
 both:  test_incl_shortreads test_excl_shortreads
 
-all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz test_longOnly_fq
+all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz test_longOnly_fq test_incl_coding_effect
 
 
 test_excl_shortreads:
@@ -16,6 +16,10 @@ test_incl_shortreads:
 
 test_incl_shortreads_SEonly:
 	../ctat-LR-fusion -T transcripts.fa --left_fq reads_1.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.incl_short_SEonly --vis
+
+
+test_incl_coding_effect: test_excl_shortreads
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --examine_coding_effect
 
 
 
