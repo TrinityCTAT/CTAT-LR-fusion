@@ -6,6 +6,7 @@ import gzip
 from collections import defaultdict
 import csv
 import logging
+import argparse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,29 +15,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-UTILDIR = os.path.dirname(os.path.abspath(__file__))
 
-REF_EXONS_FILE = os.path.sep.join(
-    [
-        UTILDIR,
-        "../../resources/GRCh38.ref_annot_exon_coords.tsv.gz",
-    ]
-)
 FUZZY = 5
 
 
 def main():
 
-    usage = "usage: {} preds.collected\n\n".format(sys.argv[0])
+    parser = argparse.ArgumentParser(description="Filter fusions for those having breakpoints within +/- distance from refernece annotations", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    if len(sys.argv) < 2:
-        exit(usage)
 
-    preds_file = sys.argv[1]
+    parser.add_argument("--fusions", type=str, required=True, help="fusion predictions tsv file")
+    parser.add_argument("--genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB', None), required=False, help="path to CTAT genome lib dir")
+    parser.add_argument("--fuzzy_dist", type=int, required=False, default=FUZZY, help="distance allowed +/- reference exon boundaries")
+    
+    
+    args = parser.parse_args()
 
+
+    genome_lib_dir = args.genome_lib_dir
+    preds_file = args.fusions
+    fuzzy_dist = args.fuzzy_dist
+
+    if genome_lib_dir is None:
+        raise RuntimeError("must specify --genome_lib_dir")
+    
+    # build exon trees
     logger.info("-building itrees for exon and fuzzy breakpoints")
-    chrom_itrees = build_fuzzy_breakpoint_itree(REF_EXONS_FILE)
+    ref_annot_gtf_exons = os.path.join(genome_lib_dir, "ref_annot.gtf.mini.sortu")
+    chrom_itrees = build_fuzzy_breakpoint_itree(REF_EXONS_FILE, fuzzy_dist)
 
+
+    
     preds_reader = csv.DictReader(open(preds_file, "rt"), delimiter="\t")
     preds_writer = csv.DictWriter(
         sys.stdout,
@@ -68,7 +77,7 @@ def main():
     sys.exit(0)
 
 
-def build_fuzzy_breakpoint_itree(ref_exons_file):
+def build_fuzzy_breakpoint_itree(ref_exons_file, fuzzy_dist):
 
     chr_itrees = defaultdict(lambda: itree.IntervalTree())
 
@@ -78,8 +87,8 @@ def build_fuzzy_breakpoint_itree(ref_exons_file):
             chrom, lend, rend = line.split("\t")
             lend = int(lend)
             rend = int(rend)
-            chr_itrees[chrom][(lend - FUZZY - 1) : (lend + FUZZY + 1)] = True
-            chr_itrees[chrom][(rend - FUZZY - 1) : (rend + FUZZY + 1)] = True
+            chr_itrees[chrom][(lend - fuzzy_dist - 1) : (lend + fuzzy_dist + 1)] = True
+            chr_itrees[chrom][(rend - fuzzy_dist - 1) : (rend + fuzzy_dist + 1)] = True
 
     return chr_itrees
 
