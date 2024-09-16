@@ -21,16 +21,30 @@ FUZZY = 5
 
 def main():
 
-    parser = argparse.ArgumentParser(description="Filter fusions for those having breakpoints within +/- distance from refernece annotations", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Filter fusions for those having breakpoints within +/- distance from refernece annotations",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
+    parser.add_argument(
+        "--fusions", type=str, required=True, help="fusion predictions tsv file"
+    )
+    parser.add_argument(
+        "--genome_lib_dir",
+        type=str,
+        default=os.environ.get("CTAT_GENOME_LIB", None),
+        required=False,
+        help="path to CTAT genome lib dir",
+    )
+    parser.add_argument(
+        "--fuzzy_dist",
+        type=int,
+        required=False,
+        default=FUZZY,
+        help="distance allowed +/- reference exon boundaries",
+    )
 
-    parser.add_argument("--fusions", type=str, required=True, help="fusion predictions tsv file")
-    parser.add_argument("--genome_lib_dir", type=str, default=os.environ.get('CTAT_GENOME_LIB', None), required=False, help="path to CTAT genome lib dir")
-    parser.add_argument("--fuzzy_dist", type=int, required=False, default=FUZZY, help="distance allowed +/- reference exon boundaries")
-    
-    
     args = parser.parse_args()
-
 
     genome_lib_dir = args.genome_lib_dir
     preds_file = args.fusions
@@ -38,14 +52,12 @@ def main():
 
     if genome_lib_dir is None:
         raise RuntimeError("must specify --genome_lib_dir")
-    
+
     # build exon trees
     logger.info("-building itrees for exon and fuzzy breakpoints")
     ref_annot_gtf_exons = os.path.join(genome_lib_dir, "ref_annot.gtf.mini.sortu")
-    chrom_itrees = build_fuzzy_breakpoint_itree(REF_EXONS_FILE, fuzzy_dist)
+    chrom_itrees = build_fuzzy_breakpoint_itree(ref_annot_gtf_exons, fuzzy_dist)
 
-
-    
     preds_reader = csv.DictReader(open(preds_file, "rt"), delimiter="\t")
     preds_writer = csv.DictWriter(
         sys.stdout,
@@ -58,10 +70,12 @@ def main():
     preds_writer.writeheader()
 
     for row in preds_reader:
-        breakpoint = row["breakpoint"]
-        break_lend, break_rend = breakpoint.split("--")
-        chrom_lend, coord_lend = break_lend.split(":")
-        chrom_rend, coord_rend = break_rend.split(":")
+
+        break_lend = row["LeftBreakpoint"]
+        break_rend = row["RightBreakpoint"]
+
+        chrom_lend, coord_lend, strand_lend = break_lend.split(":")
+        chrom_rend, coord_rend, strand_rend = break_rend.split(":")
 
         coord_lend = int(coord_lend)
         coord_rend = int(coord_rend)
@@ -81,10 +95,11 @@ def build_fuzzy_breakpoint_itree(ref_exons_file, fuzzy_dist):
 
     chr_itrees = defaultdict(lambda: itree.IntervalTree())
 
-    with gzip.open(ref_exons_file, "rt") as fh:
+    with open(ref_exons_file, "rt") as fh:
         for line in fh:
             line = line.rstrip()
-            chrom, lend, rend = line.split("\t")
+            vals = line.split("\t")
+            chrom, lend, rend = vals[0], vals[3], vals[4]
             lend = int(lend)
             rend = int(rend)
             chr_itrees[chrom][(lend - fuzzy_dist - 1) : (lend + fuzzy_dist + 1)] = True
