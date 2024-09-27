@@ -117,14 +117,14 @@ main: {
 
                 # ensure we have overlap with annotated exons
                 my @left_gene_align_coords = grep { $_->[0] < $geneA_max } @LR_coordsets;
-                my @right_gene_align_coords = grep { $->[1] > $geneB_min } @LR_coordsets;
+                my @right_gene_align_coords = grep { $_->[1] > $geneB_min } @LR_coordsets;
                 unless (&has_exon_overlapping_segment(\@left_gene_align_coords, $transA_all_coords_aref)
                         &&
                         &has_exon_overlapping_segment(\@right_gene_align_coords, $transB_all_coords_aref) ) {
                     if ($DEBUG) {
                         print STDERR "-skipping $scaffold\t$LR_acc as lacks exon overlap for both genes\n";
                     }
-                    continue;
+                    next;
                 }
                 
                 
@@ -689,6 +689,9 @@ sub has_exon_overlapping_segment {
             my ($trans_lend, $trans_rend) = sort {$a<=>$b} @$trans_coordset;
 
             if ($trans_lend < $align_rend && $trans_rend > $align_lend) {
+
+                print STDERR "-found overlap [$trans_lend, $trans_rend] with [$align_lend, $align_rend]\n";
+                
                 # overlap detected
                 return(1);
             }
