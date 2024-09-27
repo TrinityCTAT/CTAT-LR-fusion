@@ -117,7 +117,7 @@ task CTAT_LR_FUSION_TASK {
     tar -zcvhf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv.*
     
     mv ctat_LR_fusion_outdir ~{sample_name}.ctat_LR_fusion_outdir
-    tar -zcvhf ~{sample_name}.ctat_LR_fusion_outdir.tar.gz ~{sample_name}.ctat_LR_fusion_outdir
+    tar -zcvf ~{sample_name}.ctat_LR_fusion_outdir.tar.gz ~{sample_name}.ctat_LR_fusion_outdir
     
     >>>
     
