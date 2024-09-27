@@ -71,6 +71,8 @@ my $EXAMINE_CODING_EFFECT = 0;
 
 my $FI_extra_params = "";
 
+my $min_mapping_quality = 20;
+
 
 my $usage = <<__EOUSAGE__;
 
@@ -115,6 +117,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_LR_novel_junction_support <int>   : min number of long reads with support at noncanonical splice breakpoint (eg. maybe not spliced!) (default: $MIN_LR_NOVEL)
 #  
+#  --min_mapping_quality <int>             : minimum mapping quality for phase-2 (FI-like), default: $min_mapping_quality
+#
 # Short read abundance filters:
 #
 #  --min_J <int>                 :minimum number of junction frags (default: $MIN_J)  
@@ -461,8 +465,22 @@ main: {
 
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 
+    ####
+    # filter low quality alignments
+
+    # first sort by read name
+    $cmd = "samtools sort -n  $intermediates_dir/LR-FI.mm2.bam -o $intermediates_dir/LR-FI.mm2.namesorted.bam";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.ok"));
+
+
+    
+    $cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
+    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
+
+    
+    
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
-    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl "
