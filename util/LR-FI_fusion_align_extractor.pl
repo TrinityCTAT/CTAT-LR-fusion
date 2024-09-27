@@ -71,7 +71,9 @@ my $NA_TYPE = "NA";
 main: {
     
     my %orig_coord_info;
-    my %scaffold_to_gene_coordsets = &parse_FI_gtf_filename($FI_gtf_filename, \%orig_coord_info);
+    my %scaffold_to_gene_coordsets;
+    my %scaffold_to_gene_trans_to_coordsets;
+    &parse_FI_gtf_filename($FI_gtf_filename, \%orig_coord_info, \%scaffold_to_gene_coordsets, \%scaffold_to_gene_trans_to_coordsets);
     
     # organize original coordinate info
     my %scaffold_to_orig_coords = &organize_original_coordinate_info(\%orig_coord_info);
@@ -91,10 +93,10 @@ main: {
         }
 
         my ($geneA_coords_href, $geneB_coords_href) = &get_gene_coords($scaffold, $scaffold_to_gene_coordsets{$scaffold});
- 
+        my ($transA_all_coords_aref, $transB_all_coords_aref) = &get_trans_coordsets($scaffold, $scaffold_to_gene_trans_to_coordsets{$scaffold});
+        
         my $geneA_max = max(keys %$geneA_coords_href);
         my $geneB_min = min(keys %$geneB_coords_href);
-
 
         if ($DEBUG) { print "$scaffold\t$geneA_max\t$geneB_min\n"; }
         
@@ -112,6 +114,19 @@ main: {
             
 
             if ($min_LR_coord < $geneA_max && $max_LR_coord > $geneB_min) { # spans both genes 
+
+                # ensure we have overlap with annotated exons
+                my @left_gene_align_coords = grep { $_->[0] < $geneA_max } @LR_coordsets;
+                my @right_gene_align_coords = grep { $->[1] > $geneB_min } @LR_coordsets;
+                unless (&has_exon_overlapping_segment(\@left_gene_align_coords, $transA_all_coords_aref)
+                        &&
+                        &has_exon_overlapping_segment(\@right_gene_align_coords, $transB_all_coords_aref) ) {
+                    if ($DEBUG) {
+                        print STDERR "-skipping $scaffold\t$LR_acc as lacks exon overlap for both genes\n";
+                    }
+                    continue;
+                }
+                
                 
                 my ($break_left, $break_right) = &get_breakpoint_coords(\@LR_coordsets, $geneA_max, $geneB_min);
 
@@ -172,11 +187,7 @@ sub get_gene_coords {
 
 ####
 sub parse_FI_gtf_filename {
-    my ($FI_gtf_filename, $orig_coord_info_href) = @_;
-
-    my %scaff_to_gene_to_coords;
-
-    my %scaff_to_trans_to_coords;
+    my ($FI_gtf_filename, $orig_coord_info_href, $scaff_to_gene_to_coords_href, $scaff_to_gene_trans_to_coords_href) = @_;
 
     open (my $fh, $FI_gtf_filename) or die "Error, cannot open file $FI_gtf_filename";
     while (<$fh>) {
@@ -213,9 +224,9 @@ sub parse_FI_gtf_filename {
         
         
         my ($lend, $rend) = ($x[3], $x[4]);
-        push (@{$scaff_to_gene_to_coords{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
+        push (@{$scaff_to_gene_to_coords_href->{$scaffold_id}->{$gene_id}}, [$lend, $rend]);
         
-        push (@{$scaff_to_trans_to_coords{$scaffold_id}->{$transcript_id}}, [$lend, $rend]);
+        push (@{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$gene_id}->{$transcript_id}}, [$lend, $rend]);
         
         
         my $strand = $x[6];
@@ -256,24 +267,30 @@ sub parse_FI_gtf_filename {
     ###############################
     ## Update splice junction info:
     
-    foreach my $scaffold_id (keys %scaff_to_trans_to_coords) {
+    foreach my $scaffold_id (keys %$scaff_to_gene_trans_to_coords_href) {
+
+        my @fusion_genes = split(/--/, $scaffold_id);
         
-        foreach my $transcript_id (keys %{$scaff_to_trans_to_coords{$scaffold_id}}) {
+        foreach my $fusion_gene (@fusion_genes) {
+        
+            foreach my $transcript_id (keys %{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$fusion_gene}}) {
             
-            my @coordsets = sort {$a->[0]<=>$b->[0]} @{$scaff_to_trans_to_coords{$scaffold_id}->{$transcript_id}};
-            
-            # assign splice juncs:
-            for (my $i = 0; $i < $#coordsets; $i++) {
-                my $left_junc = $coordsets[$i]->[1];
-                my $right_junc = $coordsets[$i+1]->[0];
+                my @coordsets = sort {$a->[0]<=>$b->[0]} @{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$fusion_gene}->{$transcript_id}};
                 
-                $orig_coord_info_href->{$scaffold_id}->{$left_junc}->{splice_junc} = $DONOR_TYPE;
-                $orig_coord_info_href->{$scaffold_id}->{$right_junc}->{splice_junc} = $ACCEPTOR_TYPE;
+                # assign splice juncs:
+                for (my $i = 0; $i < $#coordsets; $i++) {
+                    my $left_junc = $coordsets[$i]->[1];
+                    my $right_junc = $coordsets[$i+1]->[0];
+                    
+                    $orig_coord_info_href->{$scaffold_id}->{$left_junc}->{splice_junc} = $DONOR_TYPE;
+                    $orig_coord_info_href->{$scaffold_id}->{$right_junc}->{splice_junc} = $ACCEPTOR_TYPE;
+                }
             }
         }
     }
     
-    return(%scaff_to_gene_to_coords);
+    return;
+    
 }
 
 
@@ -284,7 +301,7 @@ sub parse_LR_alignment_gff3_file {
     my ($LR_gff3_filename) = @_;
 
     
-    my %scaffold_to_trans_coords;
+    my %scaffold_to_read_coords;
     
     open (my $fh, $LR_gff3_filename) or die $!;
     while (<$fh>) {
@@ -307,13 +324,13 @@ sub parse_LR_alignment_gff3_file {
             die "Error, cannot find LR ID from $info";
         }
 
-        push (@{$scaffold_to_trans_coords{$scaff}->{$LR_id}}, [$lend, $rend]);
+        push (@{$scaffold_to_read_coords{$scaff}->{$LR_id}}, [$lend, $rend]);
         
 
     }
     close $fh;
     
-    return(%scaffold_to_trans_coords);
+    return(%scaffold_to_read_coords);
 
 }
 
@@ -628,3 +645,59 @@ sub merge_identical_breakpoints {
     return (values %fusion_token_to_consolidated_fusions);
 }
 
+
+####
+sub get_trans_coordsets {
+    my ($scaffold, $scaffold_to_trans_coords_href) = @_;
+
+    my ($left_gene, $right_gene) = split(/--/, $scaffold);
+
+    my @left_exon_coords = &get_trans_coordsets_single_gene($scaffold_to_trans_coords_href->{$left_gene});
+
+    my @right_exon_coords = &get_trans_coordsets_single_gene($scaffold_to_trans_coords_href->{$right_gene});
+
+    return(\@left_exon_coords, \@right_exon_coords);
+    
+}
+
+sub get_trans_coordsets_single_gene {
+    my ($trans_coords_href) = @_;
+
+    my @all_coord_pairs;
+    
+    foreach my $trans_id (keys %$trans_coords_href) {
+        
+        my @coords_pair_hrefs = values %$trans_coords_href;
+        foreach my $coordpair_href (@coords_pair_hrefs) {
+            push (@all_coord_pairs, @$coordpair_href);
+        }
+    }
+
+    return(@all_coord_pairs);
+}
+
+
+####
+sub has_exon_overlapping_segment {
+    my ($LR_align_coords_aref, $all_trans_coords_aref) = @_;
+
+
+    foreach my $align_coordset_aref (@$LR_align_coords_aref) {
+        my ($align_lend, $align_rend) = sort {$a<=>$b} @$align_coordset_aref;
+
+        foreach my $trans_coordset (@$all_trans_coords_aref) {
+            my ($trans_lend, $trans_rend) = sort {$a<=>$b} @$trans_coordset;
+
+            if ($trans_lend < $align_rend && $trans_rend > $align_lend) {
+                # overlap detected
+                return(1);
+            }
+        }
+    }
+
+    return(0);
+}
+
+
+        
+    
