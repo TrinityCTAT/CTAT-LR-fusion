@@ -690,8 +690,9 @@ sub has_exon_overlapping_segment {
 
             if ($trans_lend < $align_rend && $trans_rend > $align_lend) {
 
-                print STDERR "-found overlap [$trans_lend, $trans_rend] with [$align_lend, $align_rend]\n";
-                
+                if ($DEBUG) {
+                    print STDERR "-found overlap [$trans_lend, $trans_rend] with [$align_lend, $align_rend]\n";
+                }
                 # overlap detected
                 return(1);
             }
