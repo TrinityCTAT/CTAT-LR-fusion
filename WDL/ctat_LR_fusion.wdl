@@ -15,14 +15,15 @@ workflow ctat_LR_fusion_wf {
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
-        
+       Int min_mapping_quality = 20
+      
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
        String memory="50G"
        Int preemptible = 0
        Int maxRetries = 0
        Float disk_space_multiplier = 3.0
-
+      
       
      }
     
@@ -38,7 +39,8 @@ workflow ctat_LR_fusion_wf {
           illumina_left_fq=illumina_left_fq,
 	      illumina_right_fq=illumina_right_fq,
           FI_extra_params=FI_extra_params,
-         
+          min_mapping_quality=min_mapping_quality,
+          
           docker=docker,
           cpu=cpu,
           memory=memory,
@@ -62,7 +64,8 @@ task CTAT_LR_FUSION_TASK {
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
-        
+       Int min_mapping_quality
+      
        String docker
        Int cpu
        String memory
@@ -90,6 +93,7 @@ task CTAT_LR_FUSION_TASK {
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
                 --min_per_id ~{min_per_id} \
                 --CPU ~{cpu} \
+                --min_mapping_quality ~{min_mapping_quality} \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
