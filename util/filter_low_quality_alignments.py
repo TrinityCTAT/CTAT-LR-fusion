@@ -64,7 +64,7 @@ def main():
     ]["SO"] != "queryname":
         raise RuntimeError(
             "Error, file: {} must be sorted by queryname (samtools sort -n)  not coordinate".format(
-                input_bam_filename
+                input_bam_file
             )
         )
 
