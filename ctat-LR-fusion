@@ -477,8 +477,7 @@ main: {
     $cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
 
-    
-    
+
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
     $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
@@ -710,11 +709,11 @@ sub include_IGV_REPORTS {
     
     
     ## get the long read alignments
-    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam  $intermediates_dir/LR-FI.mm2.bam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
+    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
     $pipeliner->add_commands(new Command($cmd, "IGV_select_max_LR_per_fusion.ok"));
     
     $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";
-    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.bam.ok"));
+    $pipeliner->add_commands(new Command($cmd, "igv.LR-FI.mm2.bam.ok"));
 
     
     ## get the FI short read alignment evidence if it exists.
