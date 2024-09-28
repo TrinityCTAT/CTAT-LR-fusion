@@ -481,10 +481,21 @@ main: {
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
     $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
+
+    # get seq-similar regions to help in filtering alignment evidence.
+    $cmd = "$FI_UTILDIR/get_seq_similar_region_FI_coordinates.pl "
+        . " --finspector_gtf $intermediates_dir/LR-FI_targets.gtf "
+        . " --genome_lib_dir $genome_lib_dir "
+        . " >  $intermediates_dir/LR-FI_targets.seqsimilar_regions.gff3 ";
+
+    $pipeliner->add_commands(new Command($cmd, "FI_targets_seqsim_gff3.ok") );
+
+
     
     $cmd = "$UTILDIR/LR-FI_fusion_align_extractor.pl "
         . " --FI_gtf $intermediates_dir/LR-FI_targets.gtf "
         . " --LR_gff3 $intermediates_dir/LR-FI.mm2.gff3 "
+        . " --seq_similar_gff3  $intermediates_dir/LR-FI_targets.seqsimilar_regions.gff3 "
         . " --output_prefix $intermediates_dir/LR-FI.mm2.fusion_transcripts "
         . " --snap_dist $SNAP_dist "
         . " >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";

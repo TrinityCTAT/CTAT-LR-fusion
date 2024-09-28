@@ -23,6 +23,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --LR_gff3 <string>       :  LR alignments in gff3 format.
 #
+#  --seq_similar_gff3 <string>  : seq-similar regions gff3 file.  
+#
 #  --output_prefix <string> :  prefix for output files
 #
 #  --snap_dist <int>        :  if breakpoint is at most this distance from a reference exon boundary, position gets snapped to the splice site.
@@ -40,6 +42,7 @@ __EOUSAGE__
 my $help_flag;
 my $FI_gtf_filename;
 my $LR_gff3_filename;
+my $seq_similar_gff3_filename;
 my $output_prefix;
 my $SNAP_dist;
 my $DEBUG = 0;
@@ -48,6 +51,7 @@ my $DEBUG = 0;
 &GetOptions ( 'help|h' => \$help_flag,
               'FI_gtf=s' => \$FI_gtf_filename,
               'LR_gff3=s' => \$LR_gff3_filename,
+              'seq_similar_gff3=s' => \$seq_similar_gff3_filename,
               'output_prefix=s' => \$output_prefix,
               'snap_dist=i' => \$SNAP_dist,
               'DEBUG|d' => \$DEBUG,
@@ -59,7 +63,7 @@ if ($help_flag) {
 }
 
 
-unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) ) {
+unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) && $seq_similar_gff3_filename) {
     die $usage;
 }
 
@@ -77,6 +81,8 @@ main: {
     
     # organize original coordinate info
     my %scaffold_to_orig_coords = &organize_original_coordinate_info(\%orig_coord_info);
+
+    my %seqsimilar_regions = &parse_seqsimilar_gff3($seq_similar_gff3_filename);
     
     #print STDERR Dumper(\%scaffold_to_gene_coordsets);
     
@@ -94,6 +100,16 @@ main: {
 
         my ($geneA_coords_href, $geneB_coords_href) = &get_gene_coords($scaffold, $scaffold_to_gene_coordsets{$scaffold});
         my ($transA_all_coords_aref, $transB_all_coords_aref) = &get_trans_coordsets($scaffold, $scaffold_to_gene_trans_to_coordsets{$scaffold});
+
+        my $seqsimilar_regions_aref = $seqsimilar_regions{$scaffold};
+        
+        if ($seqsimilar_regions_aref) {
+
+            #print STDERR "Seqsimilar regions for $scaffold: " . Dumper($seqsimilar_regions_aref);
+            
+            $transA_all_coords_aref = &exclude_seqsimilar_regions($transA_all_coords_aref, $seqsimilar_regions_aref);
+            $transB_all_coords_aref = &exclude_seqsimilar_regions($transB_all_coords_aref, $seqsimilar_regions_aref);
+        }
         
         my $geneA_max = max(keys %$geneA_coords_href);
         my $geneB_min = min(keys %$geneB_coords_href);
@@ -703,5 +719,65 @@ sub has_exon_overlapping_segment {
 }
 
 
+####
+sub parse_seqsimilar_gff3 {
+    my ($seqsimilar_gff3_file) = @_;
+
+    my %seqsimilar_regions;
+    
+    open(my $fh, $seqsimilar_gff3_file) or die "Error, cannot open file: $seqsimilar_gff3_file";
+    while(<$fh>) {
+        chomp;
+        my @x = split(/\t/);
+        my $scaffold = $x[0];
+        my $lend = $x[3];
+        my $rend = $x[4];
+
+        if ($lend =~ /\d+/ && $rend =~ /\d+/) {
+            push(@{$seqsimilar_regions{$scaffold}}, [$lend, $rend]);
+        }
         
+    }
+
+    close $fh;
+
+    return(%seqsimilar_regions);
+}
+
+
+####
+sub exclude_seqsimilar_regions {
+    my ($trans_aref, $seqsimilar_regions_aref) = @_;
+
+
+    my @surviving_trans_coords;
+    foreach my $trans_coordset (@$trans_aref) {
+        my ($lend, $rend) = @$trans_coordset;
+        unless($lend && $rend) {
+            confess "Error, no coord pair in trans_coordset: [$lend, $rend]";
+        }
+        
+        foreach my $seqsimilar_region (@$seqsimilar_regions_aref) {
+            my ($region_lend, $region_rend) = @$seqsimilar_region;
+
+            unless($region_lend && $region_rend) {
+                confess "Error, no region coordpair in [$region_lend, $region_rend]";
+            }
+            
+            if ($lend <= $region_rend && $rend >= $region_lend) {
+                # overlaps
+                # excluding transcript exon.
+            }
+            else {
+                # retain segment
+                push(@surviving_trans_coords, [$lend, $rend]);
+            }
+        }
+    }
+
+    return(\@surviving_trans_coords);
+}
+
+
+                  
     
