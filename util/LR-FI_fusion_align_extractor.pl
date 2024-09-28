@@ -8,6 +8,7 @@ use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
+use Overlap_piler;
 use Data::Dumper;
 use List::Util qw(min max);
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
@@ -719,6 +720,10 @@ sub has_exon_overlapping_segment {
         foreach my $trans_coordset (@$all_trans_coords_aref) {
             my ($trans_lend, $trans_rend) = sort {$a<=>$b} @$trans_coordset;
 
+            if (! (defined($trans_lend) && defined($trans_rend)) ) {
+                confess "Error, not all trans coords defined: " . Dumper($all_trans_coords_aref);
+            }
+            
             if ($trans_lend < $align_rend && $trans_rend > $align_lend) {
 
                 if ($DEBUG) {
@@ -771,8 +776,10 @@ sub exclude_seqsimilar_regions {
         unless($lend && $rend) {
             confess "Error, no coord pair in trans_coordset: [$lend, $rend]";
         }
+
+        my $found_overlap = 0;
         
-        foreach my $seqsimilar_region (@$seqsimilar_regions_aref) {
+        seqsimilar_search: foreach my $seqsimilar_region (@$seqsimilar_regions_aref) {
             my ($region_lend, $region_rend) = @$seqsimilar_region;
 
             unless($region_lend && $region_rend) {
@@ -782,14 +789,23 @@ sub exclude_seqsimilar_regions {
             if ($lend <= $region_rend && $rend >= $region_lend) {
                 # overlaps
                 # excluding transcript exon.
-            }
-            else {
-                # retain segment
-                push(@surviving_trans_coords, [$lend, $rend]);
+                $found_overlap = 1;
+                last seqsimilar_search;
             }
         }
+
+        if (! $found_overlap) {
+            # retain segment
+            push(@surviving_trans_coords, [$lend, $rend]);
+        }
+        
     }
 
+
+    if (@surviving_trans_coords) {
+        @surviving_trans_coords = Overlap_piler::simple_coordsets_collapser(@surviving_trans_coords);
+    }
+    
     return(\@surviving_trans_coords);
 }
 
