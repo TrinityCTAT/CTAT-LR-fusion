@@ -118,7 +118,10 @@ task CTAT_LR_FUSION_TASK {
     cp ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.seqsimilar.bed ~{sample_name}.ctat-LR-fusion.igv.seqsimilar.bed
     cp ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.breakoint.roi.bed ~{sample_name}.ctat-LR-fusion.igv.LR.breakoint.roi.bed
 
-    tar -zcvhf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv.*
+    mkdir ~{sample_name}.ctat-LR-fusion.igv
+    mv ~{sample_name}.ctat-LR-fusion.igv.* ~{sample_name}.ctat-LR-fusion.igv/
+    
+    tar -zcvhf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv/
     
     mv ctat_LR_fusion_outdir ~{sample_name}.ctat_LR_fusion_outdir
     tar -zcvf ~{sample_name}.ctat_LR_fusion_outdir.tar.gz ~{sample_name}.ctat_LR_fusion_outdir
