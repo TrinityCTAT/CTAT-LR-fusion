@@ -9,6 +9,7 @@ use lib ("$FindBin::Bin/../PerlLib");
 use SAM_reader;
 use SAM_entry;
 use Overlap_piler;
+use Overlap_info;
 use Data::Dumper;
 use List::Util qw(min max);
 use Getopt::Long qw(:config posix_default no_ignore_case bundling pass_through);
@@ -25,6 +26,8 @@ my $usage = <<__EOUSAGE__;
 #  --LR_gff3 <string>       :  LR alignments in gff3 format.
 #
 #  --seq_similar_gff3 <string>  : seq-similar regions gff3 file.  
+#
+#  --min_trans_overlap_length <int>  : minimum read overlap length for each gene in the fusion pair 
 #
 #  --output_prefix <string> :  prefix for output files
 #
@@ -46,6 +49,7 @@ my $LR_gff3_filename;
 my $seq_similar_gff3_filename;
 my $output_prefix;
 my $SNAP_dist;
+my $min_trans_overlap_length;
 my $DEBUG = 0;
 
 
@@ -56,6 +60,7 @@ my $DEBUG = 0;
               'output_prefix=s' => \$output_prefix,
               'snap_dist=i' => \$SNAP_dist,
               'DEBUG|d' => \$DEBUG,
+              'min_trans_overlap_length=i' => \$min_trans_overlap_length, 
     );
 
 
@@ -64,7 +69,7 @@ if ($help_flag) {
 }
 
 
-unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) && $seq_similar_gff3_filename) {
+unless ($FI_gtf_filename && $LR_gff3_filename && $output_prefix && defined($SNAP_dist) && $seq_similar_gff3_filename && $min_trans_overlap_length) {
     die $usage;
 }
 
@@ -113,6 +118,16 @@ main: {
             $transA_all_coords_aref = &exclude_seqsimilar_regions($transA_all_coords_aref, $seqsimilar_regions_aref);
             $transB_all_coords_aref = &exclude_seqsimilar_regions($transB_all_coords_aref, $seqsimilar_regions_aref);
         }
+
+        unless (@$transA_all_coords_aref && @$transB_all_coords_aref) {
+            print STDERR "-warning, $scaffold eliminated as candidate due to no surviving transcript exons after seq-similar region exclusions\n";
+            next;
+        }
+        
+        
+        $transA_all_coords_aref = &collapse_overlapping_trans_segments($transA_all_coords_aref);
+        $transB_all_coords_aref = &collapse_overlapping_trans_segments($transB_all_coords_aref);
+                    
         
         my $geneA_max = max(keys %$geneA_coords_href);
         my $geneB_min = min(keys %$geneB_coords_href);
@@ -121,6 +136,9 @@ main: {
         
         unless (exists $scaffold_to_LR_coords{$scaffold}) { next; }
 
+        ##############################
+        # evaluate each read alignment
+        
         my @LR_accs = keys %{$scaffold_to_LR_coords{$scaffold}};
         foreach my $LR_acc (@LR_accs) {
             my @LR_coordsets = sort {$a->[0]<=>$b->[0]} @{$scaffold_to_LR_coords{$scaffold}->{$LR_acc}};
@@ -134,6 +152,7 @@ main: {
 
             if ($min_LR_coord < $geneA_max && $max_LR_coord > $geneB_min) { # spans both genes 
 
+                #########
                 # ensure we have overlap with annotated exons
                 my @left_gene_align_coords = grep { $_->[0] < $geneA_max } @LR_coordsets;
                 my @right_gene_align_coords = grep { $_->[1] > $geneB_min } @LR_coordsets;
@@ -159,8 +178,31 @@ main: {
                     }
                     next;
                 }
+
+
+                ######
+                ## Check that the amount of overlap meets minimum requirements
+
+                #print STDERR "-testing left overlap len, left align coords: " . Dumper(\@left_gene_align_coords) . " and transA all coords: " . Dumper($transA_all_coords_aref);
                 
+                my $left_gene_overlapped_bases = &Overlap_info::sum_overlaps(\@left_gene_align_coords, $transA_all_coords_aref);
+                if ($left_gene_overlapped_bases < $min_trans_overlap_length) {
+                    if ($DEBUG) {
+                        print STDERR "-skipping $scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for left: $left_gene: $left_gene_overlapped_bases\n";
+                    }
+                    next;
+                }
+
+                #print STDERR "-testing left overlap len, left align coords: " . Dumper(\@right_gene_align_coords) . " and transB all coords: " . Dumper($transA_all_coords_aref);
                 
+                my $right_gene_overlapped_bases = &Overlap_info::sum_overlaps(\@right_gene_align_coords, $transB_all_coords_aref);
+                if ($right_gene_overlapped_bases < $min_trans_overlap_length) {
+                    if ($DEBUG) {
+                        print STDERR "-skipping $scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for right: $right_gene: $right_gene_overlapped_bases\n";
+                    }
+                    next;
+                }
+                                
                 my ($break_left, $break_right) = &get_breakpoint_coords(\@LR_coordsets, $geneA_max, $geneB_min);
 
                 if ($DEBUG) {
@@ -800,15 +842,24 @@ sub exclude_seqsimilar_regions {
         }
         
     }
-
-
-    if (@surviving_trans_coords) {
-        @surviving_trans_coords = Overlap_piler::simple_coordsets_collapser(@surviving_trans_coords);
-    }
     
     return(\@surviving_trans_coords);
 }
 
 
+sub collapse_overlapping_trans_segments {
+    my ($trans_coords_aref) = @_;
+
+    my @coords = @$trans_coords_aref;
+
+    if (scalar(@coords) < 2) {
+        # nothing to collapse
+        return($trans_coords_aref);
+    }
+    
+    my @collapsed_coords = Overlap_piler::simple_coordsets_collapser(@coords);
+
+    return(\@collapsed_coords);
+}
                   
     

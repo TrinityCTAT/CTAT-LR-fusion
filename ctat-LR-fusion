@@ -73,6 +73,8 @@ my $FI_extra_params = "";
 
 my $min_mapping_quality = 20;
 
+my $min_trans_overlap_length = 100;
+
 
 my $usage = <<__EOUSAGE__;
 
@@ -118,6 +120,8 @@ my $usage = <<__EOUSAGE__;
 #  --min_LR_novel_junction_support <int>   : min number of long reads with support at noncanonical splice breakpoint (eg. maybe not spliced!) (default: $MIN_LR_NOVEL)
 #  
 #  --min_mapping_quality <int>             : minimum mapping quality for phase-2 (FI-like), default: $min_mapping_quality
+#
+#  --min_trans_overlap_length <int>           : minimum read overlap length for each gene in the fusion pair, default: $min_trans_overlap_length
 #
 # Short read abundance filters:
 #
@@ -229,7 +233,10 @@ my $extract_fusion_LR_fasta = "";
               'examine_coding_effect' => \$EXAMINE_CODING_EFFECT,
 
               'FI_extra_params=s' => \$FI_extra_params, 
-              
+
+              'min_mapping_quality=i' => \$min_mapping_quality,
+
+              'min_trans_overlap_length=i' => \$min_trans_overlap_length,
 );
 
 
@@ -498,6 +505,7 @@ main: {
         . " --seq_similar_gff3  $intermediates_dir/LR-FI_targets.seqsimilar_regions.gff3 "
         . " --output_prefix $intermediates_dir/LR-FI.mm2.fusion_transcripts "
         . " --snap_dist $SNAP_dist "
+        . " --min_trans_overlap_length $min_trans_overlap_length "
         . " >  $intermediates_dir/LR-FI.mm2.fusion_transcripts";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
 
