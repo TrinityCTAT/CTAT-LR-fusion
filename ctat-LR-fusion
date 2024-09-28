@@ -474,7 +474,7 @@ main: {
 
 
     
-    $cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
+    $cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
 
     
