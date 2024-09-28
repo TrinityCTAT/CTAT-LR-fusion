@@ -91,6 +91,9 @@ main: {
     my %seqsimilar_regions = &parse_seqsimilar_gff3($seq_similar_gff3_filename);
     
     #print STDERR Dumper(\%scaffold_to_gene_coordsets);
+
+    my $filtered_out_log_file = "$output_prefix.LR-FI_fusion_align_extractor-filtered-log";
+    open(my $filtered_ofh, ">$filtered_out_log_file") or die "Error, cannot write to $filtered_out_log_file";
     
     my %scaffold_to_LR_coords = &parse_LR_alignment_gff3_file($LR_gff3_filename);
     
@@ -121,6 +124,7 @@ main: {
 
         unless (@$transA_all_coords_aref && @$transB_all_coords_aref) {
             print STDERR "-warning, $scaffold eliminated as candidate due to no surviving transcript exons after seq-similar region exclusions\n";
+            print $filtered_ofh "$scaffold eliminated as candidate due to no surviving transcript exons after seq-similar region exclusions\n";
             next;
         }
         
@@ -134,7 +138,10 @@ main: {
 
         if ($DEBUG) { print "$scaffold\t$geneA_max\t$geneB_min\n"; }
         
-        unless (exists $scaffold_to_LR_coords{$scaffold}) { next; }
+        unless (exists $scaffold_to_LR_coords{$scaffold}) {
+            print $filtered_ofh "$scaffold has no LR reads aligned.\n";
+            next;
+        }
 
         ##############################
         # evaluate each read alignment
@@ -144,7 +151,11 @@ main: {
             my @LR_coordsets = sort {$a->[0]<=>$b->[0]} @{$scaffold_to_LR_coords{$scaffold}->{$LR_acc}};
             
             # ignore singletons
-            if (scalar(@LR_coordsets) < 2) { next; } # at least 2 sets of coordinates, indicating an intron
+            if (scalar(@LR_coordsets) < 2) {
+                # at least 2 sets of coordinates, indicating an intron
+                print $filtered_ofh "$scaffold\t$LR_acc\tsingle exon alignment\n";
+                next;
+            } 
             
             my $min_LR_coord = $LR_coordsets[0]->[0];
             my $max_LR_coord = $LR_coordsets[$#LR_coordsets]->[1];
@@ -165,6 +176,7 @@ main: {
                     if ($DEBUG) {
                         print STDERR "-skipping  $scaffold\t$LR_acc as lacks exon overlap for left gene $left_gene\n";
                     }
+                    print $filtered_ofh "$scaffold\t$LR_acc as lacks exon overlap for left gene $left_gene\n";
                     next;
                 }
 
@@ -176,6 +188,7 @@ main: {
                     if ($DEBUG) {
                         print STDERR "-skipping $scaffold\t$LR_acc as lacks exon overlap for right gene: $right_gene\n";
                     }
+                    print $filtered_ofh "$scaffold\t$LR_acc as lacks exon overlap for right gene: $right_gene\n";
                     next;
                 }
 
@@ -190,6 +203,7 @@ main: {
                     if ($DEBUG) {
                         print STDERR "-skipping $scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for left: $left_gene: $left_gene_overlapped_bases\n";
                     }
+                    print $filtered_ofh "$scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for left: $left_gene: $left_gene_overlapped_bases\n";
                     next;
                 }
 
@@ -200,6 +214,7 @@ main: {
                     if ($DEBUG) {
                         print STDERR "-skipping $scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for right: $right_gene: $right_gene_overlapped_bases\n";
                     }
+                    print $filtered_ofh "$scaffold\t$LR_acc as lacks minimum overlap length ($min_trans_overlap_length) for right: $right_gene: $right_gene_overlapped_bases\n";
                     next;
                 }
                                 
