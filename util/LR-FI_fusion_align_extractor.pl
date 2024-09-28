@@ -91,6 +91,8 @@ main: {
     my %LR_fusion_trans_ids;
 
     foreach my $scaffold (keys %scaffold_to_gene_coordsets) {
+
+        my ($left_gene, $right_gene) = split(/--/, $scaffold);
         
         my @genes = keys %{$scaffold_to_gene_coordsets{$scaffold}};
 
@@ -134,11 +136,25 @@ main: {
                 # ensure we have overlap with annotated exons
                 my @left_gene_align_coords = grep { $_->[0] < $geneA_max } @LR_coordsets;
                 my @right_gene_align_coords = grep { $_->[1] > $geneB_min } @LR_coordsets;
-                unless (&has_exon_overlapping_segment(\@left_gene_align_coords, $transA_all_coords_aref)
-                        &&
-                        &has_exon_overlapping_segment(\@right_gene_align_coords, $transB_all_coords_aref) ) {
+
+                if ($DEBUG) {
+                    print STDERR "Comparing Left align coords: " . Dumper(\@left_gene_align_coords) .
+                        "\n to left gene $left_gene: coords: " . Dumper($transA_all_coords_aref);
+                }
+                unless(&has_exon_overlapping_segment(\@left_gene_align_coords, $transA_all_coords_aref)) {
                     if ($DEBUG) {
-                        print STDERR "-skipping $scaffold\t$LR_acc as lacks exon overlap for both genes\n";
+                        print STDERR "-skipping  $scaffold\t$LR_acc as lacks exon overlap for left gene $left_gene\n";
+                    }
+                    next;
+                }
+
+                if ($DEBUG) {
+                    print STDERR "Comparing Right align coords: " . Dumper(\@right_gene_align_coords) .
+                        "\n to right gene $right_gene: coords: " . Dumper($transB_all_coords_aref);
+                }
+                unless(&has_exon_overlapping_segment(\@right_gene_align_coords, $transB_all_coords_aref) ) {
+                    if ($DEBUG) {
+                        print STDERR "-skipping $scaffold\t$LR_acc as lacks exon overlap for right gene: $right_gene\n";
                     }
                     next;
                 }
@@ -696,7 +712,6 @@ sub get_trans_coordsets_single_gene {
 ####
 sub has_exon_overlapping_segment {
     my ($LR_align_coords_aref, $all_trans_coords_aref) = @_;
-
 
     foreach my $align_coordset_aref (@$LR_align_coords_aref) {
         my ($align_lend, $align_rend) = sort {$a<=>$b} @$align_coordset_aref;
