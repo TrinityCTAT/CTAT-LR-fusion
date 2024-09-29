@@ -16,6 +16,7 @@ workflow ctat_LR_fusion_wf {
        File? illumina_right_fq
        String? FI_extra_params
        Int min_mapping_quality = 20
+       Int min_trans_overlap_length = 100
       
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
@@ -40,6 +41,7 @@ workflow ctat_LR_fusion_wf {
 	      illumina_right_fq=illumina_right_fq,
           FI_extra_params=FI_extra_params,
           min_mapping_quality=min_mapping_quality,
+          min_trans_overlap_length=min_trans_overlap_length,
           
           docker=docker,
           cpu=cpu,
@@ -65,6 +67,7 @@ task CTAT_LR_FUSION_TASK {
        File? illumina_right_fq
        String? FI_extra_params
        Int min_mapping_quality
+       Int min_trans_overlap_length
       
        String docker
        Int cpu
@@ -94,6 +97,7 @@ task CTAT_LR_FUSION_TASK {
                 --min_per_id ~{min_per_id} \
                 --CPU ~{cpu} \
                 --min_mapping_quality ~{min_mapping_quality} \
+                --min_trans_overlap_length ~{min_trans_overlap_length} \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
