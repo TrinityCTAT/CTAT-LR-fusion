@@ -71,7 +71,7 @@ my $EXAMINE_CODING_EFFECT = 0;
 
 my $FI_extra_params = "";
 
-my $min_mapping_quality = 20;
+#my $min_mapping_quality = 20;
 
 my $min_trans_overlap_length = 100;
 
@@ -119,8 +119,6 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_LR_novel_junction_support <int>   : min number of long reads with support at noncanonical splice breakpoint (eg. maybe not spliced!) (default: $MIN_LR_NOVEL)
 #  
-#  --min_mapping_quality <int>             : minimum mapping quality for phase-2 (FI-like), default: $min_mapping_quality
-#
 #  --min_trans_overlap_length <int>           : minimum read overlap length for each gene in the fusion pair, default: $min_trans_overlap_length
 #
 # Short read abundance filters:
@@ -180,6 +178,9 @@ __EOUSAGE__
 
     ;
 
+# deprecated for now
+#  --min_mapping_quality <int>             : minimum mapping quality for phase-2 (FI-like), default: $min_mapping_quality
+#
 
 my $top_candidates_only = 0; # hidden opt for troubleshooting igv-reports
 my $extract_fusion_LR_fasta = "";
@@ -234,7 +235,7 @@ my $extract_fusion_LR_fasta = "";
 
               'FI_extra_params=s' => \$FI_extra_params, 
 
-              'min_mapping_quality=i' => \$min_mapping_quality,
+              # 'min_mapping_quality=i' => \$min_mapping_quality,
 
               'min_trans_overlap_length=i' => \$min_trans_overlap_length,
 );
@@ -475,20 +476,19 @@ main: {
     ####
     # filter low quality alignments
 
+
     # first sort by read name
-    $cmd = "samtools sort -n  $intermediates_dir/LR-FI.mm2.bam -o $intermediates_dir/LR-FI.mm2.namesorted.bam";
-    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.ok"));
-
-
+    # $cmd = "samtools sort -n  $intermediates_dir/LR-FI.mm2.bam -o $intermediates_dir/LR-FI.mm2.namesorted.bam";
+    #$pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.ok"));
+    #$cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
+    #$pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
     
-    $cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
-    $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
-
-
+        
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
-    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
+    #$cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
-
+    
     # get seq-similar regions to help in filtering alignment evidence.
     $cmd = "$FI_UTILDIR/get_seq_similar_region_FI_coordinates.pl "
         . " --finspector_gtf $intermediates_dir/LR-FI_targets.gtf "
