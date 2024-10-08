@@ -1,3 +1,12 @@
+# ctat-LR-fusion v1.0.0 Oct 8, 2024
+- works well for both ONT and PacBio under default params.
+- excludes alignment overlaps between gene pairs that fall within sequence-similar regions, and requires at least 25 bases (default) of exon overlap in the remaining regions.
+- excluding neighbor-overlap gene pairings and additional annotation-based filtering between phase-1 and phase-2.
+- added --FI_extra_params custom parameter to pass through STAR parameters to F
+- included option for --examine_coding_effect
+
+
+
 # ctat-LR-fusion v0.13.0 Jan 27, 2024
 - allow for paralog alignments to be included
 - pursue additional candidates where one breakpoint is initially <= MAX_EXON_DELTA and the other is within 1kb and there's multiple reads suggesting it.
