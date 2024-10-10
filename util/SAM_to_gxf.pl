@@ -20,7 +20,7 @@ my $usage = <<__EOUSAGE__;
 #
 #  --sam <string>      sam or bam file with transcript alignments 
 # 
-#  --format <string>   gff3 | gtf 
+#  --format <string>   gff3 | gtf | bounds
 #
 #  --allow_non_primary    report non-primary alignments (by default, only reports primary alignments)
 #
@@ -57,7 +57,7 @@ unless ($sam_file && $format) {
 
 }
 
-unless ($format =~ /^(gff3|gtf)$/) {
+unless ($format =~ /^(gff3|gtf|bounds)$/) {
     die "Sorry, only gff3 or gtf is allowed for --format";
 }
 
@@ -204,9 +204,10 @@ main: {
         #if ($DEBUG) {
         #    print "interval-based alignment length: $trans_align_len\n";
         #
+
+
         
-        
-        if ($format eq "gtf") {
+        if ($format eq "gtf" || $format eq "bounds") {
             # need a transcript record.
             @merged_coords = sort {$a->[0]<=>$b->[0]} @merged_coords;
             my $genome_lend = $merged_coords[0]->[0];
@@ -226,6 +227,14 @@ main: {
 
             my $trans_lend = ($strand eq '+') ? $merged_coords[0]->[2] : $merged_coords[-1]->[2];
             my $trans_rend = ($strand eq '+') ? $merged_coords[-1]->[3] : $merged_coords[0]->[3];
+
+            if ($format eq "bounds") {
+
+                # simple one-liner showing bounds of genome and transcript coords.
+                print join("\t", $scaff_name, "$genome_lend-$genome_rend", $read_name, "$trans_lend-$trans_rend", $strand, $per_id) . "\n";
+                next;
+            }
+
             
             print join("\t",
                        $scaff_name,
