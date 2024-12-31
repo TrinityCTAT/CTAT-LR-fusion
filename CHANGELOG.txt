@@ -1,3 +1,7 @@
+# ctat-LR-fusion v1.0.1 Dec 31, 2024
+- bugfix wrt igv-prep and igv html for vis of long reads
+- sync'd latest minimap2 to ctat-minimap2
+
 # ctat-LR-fusion v1.0.0 Oct 8, 2024
 - works well for both ONT and PacBio under default params.
 - excludes alignment overlaps between gene pairs that fall within sequence-similar regions, and requires at least 25 bases (default) of exon overlap in the remaining regions.
