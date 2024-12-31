@@ -466,26 +466,15 @@ main: {
     my $FI_annots_gtf = "$intermediates_dir/LR-FI_targets.gtf";
     
     &prep_minimap2_reference($FI_contigs_file, $intermediates_dir, $FI_mm2, $FI_splice_bed, $FI_annots_gtf);
-    
+
+    my $LR_FI_mm2_bam = "$intermediates_dir/LR-FI.mm2.bam";
     ## run mm2 using the chimeric candidates:
-    $cmd = "bash -c \"set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $intermediates_dir/LR-FI.mm2.bam\" ";
-
-
+    $cmd = "bash -c \"set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $LR_FI_mm2_bam\" ";
+    
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 
-    ####
-    # filter low quality alignments
-
-
-    # first sort by read name
-    # $cmd = "samtools sort -n  $intermediates_dir/LR-FI.mm2.bam -o $intermediates_dir/LR-FI.mm2.namesorted.bam";
-    #$pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.ok"));
-    #$cmd = "$UTILDIR/filter_low_quality_alignments.py  --input_namesorted_bam $intermediates_dir/LR-FI.mm2.namesorted.bam --output_bam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  -Q $min_mapping_quality";
-    #$pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.namesorted.qfiltered.ok"));
-    
         
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
-    #$cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
@@ -657,7 +646,7 @@ main: {
 
     
     if ($IGV_REPORTS) {
-        &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion);
+        &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam);
         $pipeliner->run();
     }
     
@@ -704,7 +693,7 @@ sub prep_minimap2_reference {
 
 ####
 sub include_IGV_REPORTS {
-    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_file, $max_IGV_LR_per_fusion) = @_;
+    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_file, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam) = @_;
     
     my $igv_prep_dir = "$intermediates_dir/IGV_prep";
     if (! -d $igv_prep_dir) {
@@ -728,7 +717,7 @@ sub include_IGV_REPORTS {
     
     
     ## get the long read alignments
-    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam $intermediates_dir/LR-FI.mm2.namesorted.qfiltered.bam  --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
+    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam $LR_FI_mm2_bam --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
     $pipeliner->add_commands(new Command($cmd, "IGV_select_max_LR_per_fusion.ok"));
     
     $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";

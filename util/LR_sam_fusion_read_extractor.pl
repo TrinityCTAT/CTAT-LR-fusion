@@ -49,6 +49,10 @@ unless ($LR_fusion_report && $FI_LR_sam) {
     die $usage;
 }
 
+unless (-e $FI_LR_sam) {
+    die "Error, cannot find file: $FI_LR_sam";
+}
+
 
 main: {
     
