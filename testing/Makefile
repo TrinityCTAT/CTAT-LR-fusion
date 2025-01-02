@@ -40,8 +40,12 @@ test_oncoreads_chim_candidates_only:
 	../ctat-LR-fusion -T oncofusionreads.fasta.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.oncoreads.chim_candidates_only --chim_candidates_only
 
 
-test_docker:
-	../Docker/run_docker.sh ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib --min_J 1  --min_sumJS 1 --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz -o ctat_LR_fusion_outdir.docker --vis
+test_docker_LR_only:
+	../Docker/run_docker.sh ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib -o ctat_LR_fusion_outdir.LR-only.docker --vis --min_trans_overlap_length 75
+
+
+test_docker_LR_and_SR:
+	../Docker/run_docker.sh ctat-LR-fusion -T /data/transcripts.fa --genome_lib_dir /ctat_genome_lib --min_J 1  --min_sumJS 1 --left_fq reads_1.fq.gz --right_fq reads_2.fq.gz -o ctat_LR_fusion_outdir.LR_and_SR.docker --vis --min_trans_overlap_length 75
 
 
 test_singularity:
@@ -49,7 +53,7 @@ test_singularity:
 
 clean:
 	rm -rf ctat_LR_fusion_outdir.* 
-	sudo rm -rf ./ctat_LR_fusion_outdir.docker
+	sudo rm -rf ./ctat_LR_fusion_outdir.*.docker
 
 
 
