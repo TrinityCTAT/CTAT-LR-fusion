@@ -61,7 +61,7 @@ unless ($align_gff3_file && $annot_gtf_file && defined($min_per_id) && $min_per_
 
 my %genes;
 my %interval_trees;
-
+my $error_counter = 0;
 
 main: {
 
@@ -69,86 +69,34 @@ main: {
     ## Parsing reference GTF 
     ########################
     
-    my %chr_to_gene_coords;
-    print STDERR "-parsing $annot_gtf_file\n";
-    my $fh;
-    if ($annot_gtf_file =~ /\.gz$/) {
-        open ($fh, "gunzip -c $annot_gtf_file | ") or die "Error, cannot open file gunzip -c $annot_gtf_file";
-    }
-    else {
-        open ($fh, $annot_gtf_file) or die "Error, cannot open file $annot_gtf_file";
-    }
+    my %chr_to_gene_coords = &parse_ref_annotations($annot_gtf_file);
     
-    while (<$fh>) {
-        chomp;
-        unless (/\w/) { next; }
-        if (/^\#/) { next; }
-        s/^>//;
-        my @x = split(/\t/);
-        
-        unless ($x[2] eq "exon") { next; }
-        
-        my $info = $x[8];
-        $info =~ /gene_id \"([^\"]+)/ or die "Error, cannot extract gene_id from $_ [specifically from: $info]";
-        my $gene_id = $1 or die "Error, no gene_id from $_";
-        
-        if ($info =~ /gene_name \"([^\"]+)/) {
-            # use gene name instead
-            $gene_id = $1;
-        }
-        
-        $info =~ /transcript_id \"([^\"]+)/ or die "Error, cannot extract transcript_id from $_";
-        my $transcript_id = $1 or die "Error, no trans id from $_";
-        
-        my ($lend, $rend) = ($x[3], $x[4]);
-        my $chr = $x[0];
-        my $orient = $x[6];
-        
-        
-        push (@{$genes{$chr}->{$gene_id}->{$transcript_id}}, { 
-            
-            gene => $gene_id,
-            transcript => $transcript_id,
-            chr => $chr,
-            lend => $lend,
-            rend => $rend,
-            orient => $orient,
-              }
-            );
-        
-        push (@{$chr_to_gene_coords{$chr}->{$gene_id}}, $lend, $rend);
-        
-    }
-    close $fh;
-
     #########################################
     ## Build interval tree for exons of genes
     #########################################
     
     print STDERR "-building interval tree for fast searching of gene overlaps\n";
     ## Build interval trees
-    foreach my $chr (keys %chr_to_gene_coords) {
 
-        my $i_tree = $interval_trees{$chr} = Set::IntervalTree->new;
-        
-        foreach my $gene_id (keys %{$chr_to_gene_coords{$chr}}) {
-            
-            my @coords = sort {$a<=>$b} @{$chr_to_gene_coords{$chr}->{$gene_id}};
-            my $lend = shift @coords;
-            my $rend = pop @coords;
-
-            $i_tree->insert($gene_id, $lend, $rend);
-        }
-    }
-
+    &build_ref_annot_interval_trees(%chr_to_gene_coords);
 
     ######################################
     ## Parse minimap2 alignments for reads
-    ######################################
+    ## and
+    ## Map candidate fusion transcripts to gene annotations
+    #######################################################
+    
+
+    print STDERR "-mapping candidate fusion transcripts to gene annotations.\n";
+    ## header
+    print join("\t", "#transcript", "num_alignments", "align_descr(s)", "[chim_annot_mapping]") . "\n";
+
     
     my %target_to_aligns;
+    my $prev_target = "";
+    
     print STDERR "-loading alignment data\n";
-    open ($fh, $align_gff3_file) or die $!;
+    open (my $fh, $align_gff3_file) or die $!;
     while (<$fh>) {
         if (/^\#/) { next; }
         unless (/\w/) { next; }
@@ -166,6 +114,13 @@ main: {
         
         my ($target, $range_lend, $range_rend) = split(/\s+/, $info_hash{Target});
 
+        if ($target ne $prev_target && %target_to_aligns) {
+            if ($DEBUG) { print "Evaluating $target\n";}
+            &evaluate_target_alignments(%target_to_aligns);
+            %target_to_aligns = (); # reinit
+        }
+        $prev_target = $target;
+        
         push (@{$target_to_aligns{$target}->{$alignment_ID}}, { chr => $chr,
                                                                 lend => $lend,
                                                                 rend => $rend,
@@ -180,19 +135,33 @@ main: {
     close $fh;
 
 
-
+    # get last one
+    if (%target_to_aligns) {
+        &evaluate_target_alignments(%target_to_aligns);
+    }
     
-    #######################################################
-    ## Map candidate fusion transcripts to gene annotations
-    #######################################################
     
+    if ($error_counter) {
+        print STDERR "*** $error_counter alignment errors were identified.\n\n";
+    }
 
-    print STDERR "-mapping candidate fusion transcripts to gene annotations.\n";
-    ## header
-    print join("\t", "#transcript", "num_alignments", "align_descr(s)", "[chim_annot_mapping]") . "\n";
+    print STDERR "-done";
     
-    my $error_counter = 0;
+    exit(0);
+}
 
+
+
+
+
+sub evaluate_target_alignments {
+    my %target_to_aligns = @_;
+
+
+    if ($DEBUG) {
+        print Dumper(\%target_to_aligns);
+    }
+    
     foreach my $target (keys %target_to_aligns) {
      
 
@@ -347,15 +316,99 @@ main: {
         
 
     } # end for each target
-    
-    
-    if ($error_counter) {
-        print STDERR "*** $error_counter alignment errors were identified.\n\n";
-    }
-    
-    
-    exit(0);
+
+
+    return;
 }
+
+
+
+sub parse_ref_annotations {
+    my ($annot_gtf_file) = @_;
+
+
+    print STDERR "-parsing $annot_gtf_file\n";
+    my $fh;
+    if ($annot_gtf_file =~ /\.gz$/) {
+        open ($fh, "gunzip -c $annot_gtf_file | ") or die "Error, cannot open file gunzip -c $annot_gtf_file";
+    }
+    else {
+        open ($fh, $annot_gtf_file) or die "Error, cannot open file $annot_gtf_file";
+    }
+
+
+    my %chr_to_gene_coords;
+    
+    while (<$fh>) {
+        chomp;
+        unless (/\w/) { next; }
+        if (/^\#/) { next; }
+        s/^>//;
+        my @x = split(/\t/);
+        
+        unless ($x[2] eq "exon") { next; }
+        
+        my $info = $x[8];
+        $info =~ /gene_id \"([^\"]+)/ or die "Error, cannot extract gene_id from $_ [specifically from: $info]";
+        my $gene_id = $1 or die "Error, no gene_id from $_";
+        
+        if ($info =~ /gene_name \"([^\"]+)/) {
+            # use gene name instead
+            $gene_id = $1;
+        }
+        
+        $info =~ /transcript_id \"([^\"]+)/ or die "Error, cannot extract transcript_id from $_";
+        my $transcript_id = $1 or die "Error, no trans id from $_";
+        
+        my ($lend, $rend) = ($x[3], $x[4]);
+        my $chr = $x[0];
+        my $orient = $x[6];
+        
+        
+        push (@{$genes{$chr}->{$gene_id}->{$transcript_id}}, { 
+            
+            gene => $gene_id,
+            transcript => $transcript_id,
+            chr => $chr,
+            lend => $lend,
+            rend => $rend,
+            orient => $orient,
+              }
+            );
+        
+        push (@{$chr_to_gene_coords{$chr}->{$gene_id}}, $lend, $rend);
+        
+    }
+    close $fh;
+
+    return(%chr_to_gene_coords);
+}
+
+
+
+
+
+####
+sub build_ref_annot_interval_trees {
+    my %chr_to_gene_coords = @_;
+    
+    foreach my $chr (keys %chr_to_gene_coords) {
+
+        my $i_tree = $interval_trees{$chr} = Set::IntervalTree->new;
+        
+        foreach my $gene_id (keys %{$chr_to_gene_coords{$chr}}) {
+            
+            my @coords = sort {$a<=>$b} @{$chr_to_gene_coords{$chr}->{$gene_id}};
+            my $lend = shift @coords;
+            my $rend = pop @coords;
+
+            $i_tree->insert($gene_id, $lend, $rend);
+        }
+    }
+
+    return;
+}
+
 
 ####
 sub map_to_annotated_exon_junctions {
