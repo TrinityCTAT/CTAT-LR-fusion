@@ -1,3 +1,10 @@
+# ctat-LR-fusion v1.0.2 Jan 14, 2024
+- use less RAM by:
+  - dont load entire alignment gff3 file into ram at once, instead process one alignment target at a time
+  - update to ctat-mm2 to fix memory leak
+  (Thanks Sergey Aganezov for reporting and testing issues!)
+
+
 # ctat-LR-fusion v1.0.1 Dec 31, 2024
 - bugfix wrt igv-prep and igv html for vis of long reads
 - sync'd latest minimap2 to ctat-minimap2
