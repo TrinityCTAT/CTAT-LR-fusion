@@ -92,6 +92,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --CPU <int>                     :number threads (default $CPU)
 #
+#  --LR_bam <string>               :minimap2 alignments for long reads in bam format for using pre-existing alignment data. Otherwise, long reads will be aligned directly here.
+#
 #  --left_fq <string>              :Illumina paired-end reads /1
 #
 #  --right_fq <string>             :Illumina paired-end reads /2
@@ -165,6 +167,8 @@ my $usage = <<__EOUSAGE__;
 #  --chim_candidates_only             : stop after first phase of identifying candidates before evaluating them in the second phase.
 #                                                     see chimera candidate listing as: output_dir/fusion_intermediates_dir/chimeric_read_candidates.FI_listing
 #
+#  --no_ctat_mm2                      : do not use ctat-minimap2, instead use regular minimap2
+#
 #  --FI_extra_params <string>         : extra parameters to give to FusionInspector (eg. "--STAR_xtra_params '--limitBAMsortRAM 61419850732' "
 #
 #
@@ -185,6 +189,10 @@ __EOUSAGE__
 my $top_candidates_only = 0; # hidden opt for troubleshooting igv-reports
 my $extract_fusion_LR_fasta = "";
 
+my $LR_bam = "";
+
+my $NO_CTAT_MM2 = 0;
+
 &GetOptions ( 'help|h' => \$help_flag,
 
               ## Required
@@ -194,6 +202,8 @@ my $extract_fusion_LR_fasta = "";
               'left_fq=s' => \$left_fq,
               'right_fq=s' => \$right_fq,
 
+              'LR_bam=s' => \$LR_bam,
+              
               ## optional
               'CPU=i' => \$CPU,
               'output|o=s' => \$output_directory,
@@ -238,6 +248,8 @@ my $extract_fusion_LR_fasta = "";
               # 'min_mapping_quality=i' => \$min_mapping_quality,
 
               'min_trans_overlap_length=i' => \$min_trans_overlap_length,
+              
+              'no_ctat_mm2' => \$NO_CTAT_MM2,
 );
 
 
@@ -265,7 +277,9 @@ if ($left_fq ne "NA") {
 if ($right_fq ne "NA") {
     $right_fq = &ensure_full_path($right_fq);
 }
-
+if ($LR_bam) {
+    $LR_bam = &ensure_full_path($LR_bam);
+}
 
 my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 
@@ -355,13 +369,26 @@ main: {
     ####################################################
 
     my $mm2_intermediate_output_file_prefix = "$intermediates_dir/" . basename($transcripts_file) . ".mm2";
-  
-    my $cmd = "bash -c \"set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric --sam-hit-only  --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_intermediate_output_file_prefix.bam\" ";
-    
+    my $mm2_chim_align_prelim_bam = "$mm2_intermediate_output_file_prefix.prelim.bam";
+    my $mm2_chim_align_bam = "$mm2_intermediate_output_file_prefix.bam";
 
-    $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
+    if ($LR_bam) {
+        # use existing bam file.
+        # extract chimeric alignments.
+        $mm2_chim_align_prelim_bam = $LR_bam;
+    }
+    else {
+        my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric";
+           
+        my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
+        $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
+    }
     
-    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_intermediate_output_file_prefix.bam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
+    my $cmd = "$UTILDIR/extract_chimeric_alignments_from_bam.py --input_bam $mm2_chim_align_prelim_bam --output_bam $mm2_chim_align_bam";
+    $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
+    
+    # convert to gff3 alignment format
+    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_chim_align_bam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
     $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
     
     ###############################
@@ -469,7 +496,8 @@ main: {
 
     my $LR_FI_mm2_bam = "$intermediates_dir/LR-FI.mm2.bam";
     ## run mm2 using the chimeric candidates:
-    $cmd = "bash -c \"set -eou pipefail && $CTAT_MINIMAP2_DIR/ctat-minimap2 --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $LR_FI_mm2_bam\" ";
+    my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2";
+    $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $LR_FI_mm2_bam\" ";
     
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 
