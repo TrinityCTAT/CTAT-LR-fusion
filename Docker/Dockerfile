@@ -112,18 +112,16 @@ RUN git clone https://github.com/lh3/seqtk.git && \
 ########
 ## Minimap2
 
-#WORKDIR $SRC
-#RUN curl -L https://github.com/lh3/minimap2/releases/download/v2.26/minimap2-2.26_x64-linux.tar.bz2 | tar -jxvf - && \
-#    mv ./minimap2-2.26_x64-linux/minimap2 $BIN/
-
-
-
+ENV MM2_ver=2.28
+WORKDIR $SRC
+RUN curl -L https://github.com/lh3/minimap2/releases/download/v${MM2_ver}/minimap2-${MM2_ver}_x64-linux.tar.bz2 | tar -jxvf - && \
+    mv ./minimap2-${MM2_ver}_x64-linux/minimap2 $BIN/
 
 
 ##############
 ## STAR
 
-ENV STAR_VERSION=2.7.8a
+ENV STAR_VERSION=2.7.11a
 RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" &&\
     wget -P $SRC $STAR_URL &&\
     tar -xvf $SRC/${STAR_VERSION}.tar.gz -C $SRC && \
@@ -154,7 +152,7 @@ RUN pip install pandas
 
 RUN pip install requests igv-reports==1.11.0
 
-ENV ctat_LR_fusion_version 1.0.2
+ENV ctat_LR_fusion_version 1.0.2-postdev1
 ENV CTAT_LR_FUSION_CO c69626347acbdb8d6285440d14c0c06bf9537f6c
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
