@@ -62,6 +62,7 @@ task CTAT_LR_FUSION_TASK {
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
+       Boolean no_ctat_mm2 = false 
         
        String docker
        Int cpu
@@ -72,6 +73,8 @@ task CTAT_LR_FUSION_TASK {
   }
 
   Int disk_space = ceil( (size(genome_lib_tar, "GB") + size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") ) * disk_space_multiplier)
+
+  String no_ctat_mm2_flag = if (no_ctat_mm2) then "--no_ctat_mm2" else ""
   
   command <<<
 
@@ -93,6 +96,7 @@ task CTAT_LR_FUSION_TASK {
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
+                ~{no_ctat_mm2} \
                 ~{"--FI_extra_params " + FI_extra_params }
 
 
