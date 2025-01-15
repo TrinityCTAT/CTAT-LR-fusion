@@ -9,6 +9,8 @@ all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz test_longOnly_
 test_excl_shortreads:
 	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75
 
+test_excl_shortreads_reg_mm2:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.reg_mm2 --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --no_ctat_mm2
 
 
 test_incl_shortreads:
