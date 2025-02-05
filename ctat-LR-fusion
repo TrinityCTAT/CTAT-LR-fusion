@@ -82,7 +82,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  Required:
 #
-#  --transcripts|T <string>        :transcript fasta or fastq file
+#  --transcripts|T <string>        :transcript fasta or fastq file (not required if --LR_bam is provided, superseeded by --LR_bam if it is provided)
+#
+#  --LR_bam <string>               :minimap2 alignments for long reads in bam format for using pre-existing alignment data (not required if --transcritps|T is provided). Otherwise, long reads will be aligned directly here.
 #
 #  --genome_lib_dir <string>       directory containing genome lib (see https://github.com/NCIP/ctat-genome-lib-builder/wiki for details)
 #                                      (defaults to env CTAT_GENOME_LIB if set. -- currently: [ $genome_lib_dir ] )      
@@ -91,8 +93,6 @@ my $usage = <<__EOUSAGE__;
 #  --vis                           :include igv-report visualization html
 #
 #  --CPU <int>                     :number threads (default $CPU)
-#
-#  --LR_bam <string>               :minimap2 alignments for long reads in bam format for using pre-existing alignment data. Otherwise, long reads will be aligned directly here.
 #
 #  --left_fq <string>              :Illumina paired-end reads /1
 #
@@ -264,9 +264,14 @@ if ($SHOW_VERSION) {
 }
 
 
-unless ($transcripts_file && $genome_lib_dir) {
+unless (($transcripts_file || $LR_bam) && $genome_lib_dir) {
     die $usage;
 }
+
+unless ($transcripts_file || $LR_bam) {
+    die "Error: Either --transcripts or --LR_bam must be provided\n$usage";
+}
+
 
 $genome_lib_dir = &ensure_full_path($genome_lib_dir);
 
@@ -360,8 +365,15 @@ main: {
         $pipeliner->add_commands(new Command($cmd, "fastq_to_fasta_seqtk.ok"));
 
         $transcripts_file = "$transcripts_file.fasta";
+    } # if input is an alignment file, we can get fasta from it directly
+    elsif ($LR_bam) {
+        my $uncompressed_transcripts_file = basename($LR_bam);
+        $uncompressed_transcripts_file =~ s/\.bam$//;
+        my $cmd = "samtools fasta -@ $CPU $LR_bam > $uncompressed_transcripts_file.fasta";
+        $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
+        $transcripts_file = "$uncompressed_transcripts_file.fasta";
     }
-    
+
     $transcripts_file = abs_path($transcripts_file);
     
     ####################################################
@@ -384,7 +396,7 @@ main: {
         $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
     }
     
-    my $cmd = "$UTILDIR/extract_chimeric_alignments_from_bam.py --input_bam $mm2_chim_align_prelim_bam --output_bam $mm2_chim_align_bam";
+    my $cmd = "samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -o $mm2_chim_align_bam"
     $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
     
     # convert to gff3 alignment format
