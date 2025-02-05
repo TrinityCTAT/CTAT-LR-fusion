@@ -264,7 +264,7 @@ if ($SHOW_VERSION) {
 }
 
 
-unless ($transcripts_file && $genome_lib_dir) {
+unless (($transcripts_file || $LR_bam) && $genome_lib_dir) {
     die $usage;
 }
 
