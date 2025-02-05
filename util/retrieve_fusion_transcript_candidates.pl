@@ -31,6 +31,8 @@ my $usage = <<__EOUSAGE__;
 #
 # --skip_read_extraction      dont extract the fusion reads, just generate the prelim report.
 #
+# --num_total_reads <int>     number of total reads (used for FFPM calculation)
+#
 ###########################################################################################################
 
 
@@ -46,6 +48,7 @@ my $help_flag;
 my $output_prefix;
 my $min_FFPM;
 my $SKIP_READ_EXTRACTION = 0;
+my $num_total_reads;
 
 
 my $ALT_MAX_EXON_DELTA = 1000;
@@ -57,6 +60,7 @@ my $ALT_MAX_EXON_DELTA = 1000;
               'output_prefix=s' => \$output_prefix,
               'min_FFPM=f' => \$min_FFPM,
               'skip_read_extraction' => \$SKIP_READ_EXTRACTION,
+              'num_total_reads=i' => \$num_total_reads,
     );
 
 if ($help_flag) {
@@ -84,6 +88,11 @@ unless (defined($MAX_EXON_DELTA)) {
     die $usage;
 }
 
+unless (defined($num_total_reads) && $num_total_reads > 0) {
+    print STDERR " - must specify --num_total_reads <int>\n";
+    die $usage;
+}
+
 unless (defined ($min_FFPM) ) {
     print STDERR "\n\nError, must set --min_FFPM ";
     die $usage;
@@ -102,19 +111,6 @@ foreach my $file ($trans_fasta, $chims_described) {
 
 
 main: {
-
-
-    # get total read count.
-    my $TOTAL_READS = `grep '>' $trans_fasta | wc -l `;
-    if ($?) { 
-        die "Error, cmd: \"grep '>' $trans_fasta | wc -l  \" died with ret $?";
-    }
-    chomp $TOTAL_READS;
-    $TOTAL_READS = int($TOTAL_READS);
-    unless ($TOTAL_READS > 0) {
-        die "Error, could not count number of reads from file: $trans_fasta (shouldnt happen....)";
-    }
-    
     
     my @fusion_candidates = &parse_chims($chims_described);
     
@@ -123,7 +119,7 @@ main: {
     my $prelim_candidates_summary_outfile = "$output_prefix.preliminary_candidates_info";
     &write_candidates_summary($prelim_candidates_summary_outfile, \@fusion_candidates);
         
-    @fusion_candidates = &filter_chims(\@fusion_candidates, $TOTAL_READS, $min_FFPM, $MAX_EXON_DELTA);
+    @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_FFPM, $MAX_EXON_DELTA);
     
     
 
@@ -131,7 +127,7 @@ main: {
     
     # store the total number of reads.
     open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
-    print $ofh "$TOTAL_READS\n";
+    print $ofh "$num_total_reads\n";
     close $ofh;
     
     
@@ -301,7 +297,7 @@ sub compute_median_val {
 
 ####
 sub filter_chims {
-    my ($fusion_candidates_aref, $TOTAL_READS, $min_FFPM, $MAX_EXON_DELTA) = @_;
+    my ($fusion_candidates_aref, $num_total_reads, $min_FFPM, $MAX_EXON_DELTA) = @_;
 
 
     my @fusion_candidates;
@@ -309,7 +305,7 @@ sub filter_chims {
     foreach my $fusion_candidate (@$fusion_candidates_aref) {
         
         my $num_reads = $fusion_candidate->{num_reads};
-        my $ffpm = $num_reads / $TOTAL_READS * 1e6;
+        my $ffpm = $num_reads / $num_total_reads * 1e6;
 
         my $min_alt_exon_delta = min($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
         my $max_alt_exon_delta = max($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});

@@ -3,7 +3,10 @@ simple: test_excl_shortreads
 
 both:  test_incl_shortreads test_excl_shortreads
 
-all: test_incl_shortreads test_excl_shortreads test_longOnly_fqgz test_longOnly_fq test_incl_coding_effect
+all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input
+
+
+all: test_incl_shortreads test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_longOnly_fqgz test_longOnly_fq test_incl_coding_effect
 
 
 test_excl_shortreads:
@@ -11,6 +14,14 @@ test_excl_shortreads:
 
 test_excl_shortreads_reg_mm2:
 	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.reg_mm2 --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --no_ctat_mm2
+
+
+test_excl_shortreads_bam_input:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.LR_bam --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --LR_bam transcripts.mm2.bam
+
+test_excl_shortreads_set_num_total_reads:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.setNumReads --min_J 1  --min_sumJS 1 --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --num_total_reads 500000
+
 
 
 test_incl_shortreads:
