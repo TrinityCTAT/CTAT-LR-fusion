@@ -156,8 +156,8 @@ RUN apt-get install -y git && apt-get clean
 WORKDIR $SRC
 
 
-ENV ctat_LR_fusion_version 1.0.2-postdev2
-ENV CTAT_LR_FUSION_CO 11286696956b42ce59652b64cb2061c339b06b80
+ENV ctat_LR_fusion_version 1.1.0
+ENV CTAT_LR_FUSION_CO be5a8778d6b628a0864b5cebcf7f52da1dd34614
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
