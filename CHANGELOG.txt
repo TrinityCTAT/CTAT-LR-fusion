@@ -1,4 +1,7 @@
-# ctat-LR-fusion v1.0.2 Jan 14, 2024
+# CTAT-LR-Fusion v1.1.0 Feb 20, 2025
+- allow --LR_bam for providing a pre-aligned minimap2 bam file to kickstart a run and skip most of the initial ctat-LR-fusion phase-1 computes. (Tanks Sergey Aganezov again!)
+
+# ctat-LR-fusion v1.0.2 Jan 14, 2025
 - use less RAM by:
   - dont load entire alignment gff3 file into ram at once, instead process one alignment target at a time
   - update to ctat-mm2 to fix memory leak

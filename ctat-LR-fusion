@@ -11,7 +11,7 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v1.0.2-postdev2";
+my $VERSION = "v1.1.0";
 #my $VERSION = "DEVEL";
 
 my $CPU = 4;
@@ -33,7 +33,7 @@ my $MIN_PER_ID = 70;
 my $genome_lib_dir = $ENV{CTAT_GENOME_LIB} || "";
 
 my $help_flag;
-my $transcripts_file;
+my $transcripts_file = "";
 my $left_fq = "NA";
 my $right_fq = "NA";
 
@@ -83,7 +83,7 @@ my $usage = <<__EOUSAGE__;
 #  Required:
 #
 #  --transcripts|T <string>        :transcript fasta or fastq file (not required if --LR_bam is provided, superseeded by --LR_bam if it is provided)
-#
+#      (or)
 #  --LR_bam <string>               :minimap2 alignments for long reads in bam format for using pre-existing alignment data (not required if --transcritps|T is provided). Otherwise, long reads will be aligned directly here.
 #
 #  --genome_lib_dir <string>       directory containing genome lib (see https://github.com/NCIP/ctat-genome-lib-builder/wiki for details)
@@ -270,6 +270,10 @@ if ($SHOW_VERSION) {
     exit(0);
 }
 
+if ($transcripts_file && $LR_bam) {
+    die "Error - specify --transcripts or --LR_bam, not both.";
+}
+
 
 unless (($transcripts_file || $LR_bam) && $genome_lib_dir) {
     die $usage;
@@ -280,9 +284,14 @@ unless ($transcripts_file || $LR_bam) {
 }
 
 
+if ($transcripts_file) {
+    $transcripts_file = &ensure_full_path($transcripts_file);
+}
+
 $genome_lib_dir = &ensure_full_path($genome_lib_dir);
 
-$transcripts_file = &ensure_full_path($transcripts_file);
+
+
 if ($left_fq ne "NA") {
     $left_fq = &ensure_full_path($left_fq);
 }

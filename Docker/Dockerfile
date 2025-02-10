@@ -128,10 +128,22 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
     mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
+
+# K8
 WORKDIR $SRC
-RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
-    tar xvf htslib-1.17.tar.bz2 && \
-    cd htslib-1.17 && \
+RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
+    cp k8-0.2.4/k8-`uname -s` $BIN/k8
+    
+RUN pip install pandas
+
+RUN pip install requests igv-reports==1.11.0
+
+
+
+WORKDIR $SRC
+RUN wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.21.tar.bz2 && \
+    tar xvf samtools-1.21.tar.bz2 && \
+    cd samtools-1.21 && \
     ./configure && make && make install
 
 
@@ -144,16 +156,8 @@ RUN apt-get install -y git && apt-get clean
 WORKDIR $SRC
 
 
-# K8
-RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
-    cp k8-0.2.4/k8-`uname -s` $BIN/k8
-    
-RUN pip install pandas
-
-RUN pip install requests igv-reports==1.11.0
-
-ENV ctat_LR_fusion_version 1.0.2-postdev1
-ENV CTAT_LR_FUSION_CO 08a271ae0aa5e6c52069fa936aeb5af283b37f42
+ENV ctat_LR_fusion_version 1.0.2-postdev2
+ENV CTAT_LR_FUSION_CO 11286696956b42ce59652b64cb2061c339b06b80
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
