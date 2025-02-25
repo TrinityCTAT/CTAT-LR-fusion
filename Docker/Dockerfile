@@ -55,7 +55,14 @@ RUN apt-get -qq update && apt-get -qq -y install \
     zlib1g-dev
 
 
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
 RUN pip install numpy
+RUN pip install pandas
+RUN pip install requests igv-reports==1.11.0
+RUN pip install pysam
+
+RUN apt-get install -y git && apt-get clean
 
 
 RUN curl -L https://cpanmin.us | perl - App::cpanminus
@@ -94,15 +101,6 @@ RUN wget https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VER
     rm *.zip && \
     rm -r bowtie2-${BOWTIE2_VERSION}-linux-x86_64
 
-## Samtools
-WORKDIR $SRC
-ENV SAMTOOLS_VERSION 1.9
-RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 && \
-    tar xvf samtools-${SAMTOOLS_VERSION}.tar.bz2 && \
-    cd samtools-${SAMTOOLS_VERSION} && \
-    ./configure && make && make install
-
-
 ## Seqtk
 WORKDIR $SRC
 RUN git clone https://github.com/lh3/seqtk.git && \
@@ -128,30 +126,23 @@ RUN STAR_URL="https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.tar.gz" 
     mv $SRC/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /usr/local/bin
 
 
-
 # K8
 WORKDIR $SRC
 RUN curl -L https://github.com/attractivechaos/k8/releases/download/v0.2.4/k8-0.2.4.tar.bz2 | tar -jxf - && \
     cp k8-0.2.4/k8-`uname -s` $BIN/k8
     
-RUN pip install pandas
-
-RUN pip install requests igv-reports==1.11.0
-
-
 
 WORKDIR $SRC
+RUN wget https://github.com/samtools/htslib/releases/download/1.21/htslib-1.21.tar.bz2 && \
+    tar xvf htslib-1.21.tar.bz2 && \
+    cd  htslib-1.21 && \
+    ./configure && make && make install
+
 RUN wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.21.tar.bz2 && \
     tar xvf samtools-1.21.tar.bz2 && \
     cd samtools-1.21 && \
     ./configure && make && make install
 
-
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
-RUN pip install pysam
-
-RUN apt-get install -y git && apt-get clean
 
 WORKDIR $SRC
 
