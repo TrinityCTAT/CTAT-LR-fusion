@@ -1,3 +1,6 @@
+# CTAT-LR-Fusion v1.1.1 July 1, 2025
+- minor update to ctat-minimap2 to resolve compilation error.
+
 # CTAT-LR-Fusion v1.1.0 Feb 10, 2025
 - allow --LR_bam for providing a pre-aligned minimap2 bam file to kickstart a run and skip most of the initial ctat-LR-fusion phase-1 computes. (Thanks Sergey Aganezov again!)
 
