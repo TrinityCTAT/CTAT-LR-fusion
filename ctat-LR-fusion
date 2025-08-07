@@ -242,6 +242,7 @@ my $num_total_reads;
 
               'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
 
+              'min_num_LR=i' => \$MIN_NUM_LR,
               'min_FFPM=f' => \$MIN_FFPM,
     
               'chim_candidates_only' => \$CHIM_CANDIDATES_ONLY,
