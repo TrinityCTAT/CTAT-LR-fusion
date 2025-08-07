@@ -243,6 +243,8 @@ my $num_total_reads;
 
               'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
 
+              'min_num_LR=i' => \$MIN_NUM_LR,
+              'min_LR_novel_junction_support=i' => \$MIN_LR_NOVEL,
               'min_FFPM=f' => \$MIN_FFPM,
     
               'chim_candidates_only' => \$CHIM_CANDIDATES_ONLY,
@@ -304,6 +306,11 @@ if ($LR_bam) {
 }
 
 my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
+
+if ($MIN_LR_NOVEL < $MIN_NUM_LR) {
+    print STDERR "** warning, --min_LR_novel_junction_support set < --min_num_LR, so resetting to $MIN_NUM_LR\n";
+    $MIN_LR_NOVEL = $MIN_NUM_LR;
+}
 
 
 my $UTILDIR = "$FindBin::RealBin/util";
