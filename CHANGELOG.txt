@@ -1,3 +1,7 @@
+# CTAT-LR-Fusion v1.1.2 Aug 7, 2025
+- respect the --min_num_LR and --min_LR_novel_junction_support and ensure --min_LR_novel_junction_support always >= --min_num_LR 
+
+
 # CTAT-LR-Fusion v1.1.1 July 1, 2025
 - minor update to ctat-minimap2 to resolve compilation error.
 
