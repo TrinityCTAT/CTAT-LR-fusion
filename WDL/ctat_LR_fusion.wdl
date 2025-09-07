@@ -5,7 +5,8 @@ workflow ctat_LR_fusion_wf {
 
     input {
        String sample_name
-       File transcripts
+       File? transcripts
+       File? LR_bam
        File genome_lib_tar_mm2_only
        File genome_lib_tar_with_STAR_idx
        Int min_per_id=90
@@ -30,6 +31,7 @@ workflow ctat_LR_fusion_wf {
         input:
           sample_name=sample_name,
           transcripts=transcripts,
+          LR_bam=LR_bam,
           genome_lib_tar= if defined(illumina_left_fq) then genome_lib_tar_with_STAR_idx else genome_lib_tar_mm2_only,
           min_per_id=min_per_id,
           min_J=min_J,
@@ -53,7 +55,8 @@ task CTAT_LR_FUSION_TASK {
 
     input {
        String sample_name
-       File transcripts
+       File? transcripts
+       File? LR_bam
        File genome_lib_tar
        Int min_per_id
        Int min_J
@@ -72,7 +75,7 @@ task CTAT_LR_FUSION_TASK {
        Float disk_space_multiplier
   }
 
-  Int disk_space = ceil( (size(genome_lib_tar, "GB") + size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") ) * disk_space_multiplier)
+  Int disk_space = ceil( (size(genome_lib_tar, "GB") + size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") + 10*size(LR_bam, "GB") ) * disk_space_multiplier)
 
   String no_ctat_mm2_flag = if (no_ctat_mm2) then "--no_ctat_mm2" else ""
   
@@ -88,7 +91,9 @@ task CTAT_LR_FUSION_TASK {
 
     ctat-LR-fusion --version
 
-    ctat-LR-fusion -T ~{transcripts} \
+    ctat-LR-fusion \
+                ~{"-T " + transcripts } \
+                ~{"--LR_bam " + LR_bam } \
                 --genome_lib_dir ctat_genome_lib_build_dir \
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
                 --min_per_id ~{min_per_id} \
