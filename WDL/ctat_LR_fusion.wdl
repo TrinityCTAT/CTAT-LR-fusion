@@ -75,7 +75,7 @@ task CTAT_LR_FUSION_TASK {
        Float disk_space_multiplier
   }
 
-  Int disk_space = ceil( (size(genome_lib_tar, "GB") + size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") + 10*size(LR_bam, "GB") ) * disk_space_multiplier)
+  Int disk_space = ceil( (size(genome_lib_tar, "GB") + 10*size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") + 10*size(LR_bam, "GB") ) * disk_space_multiplier)
 
   String no_ctat_mm2_flag = if (no_ctat_mm2) then "--no_ctat_mm2" else ""
   
