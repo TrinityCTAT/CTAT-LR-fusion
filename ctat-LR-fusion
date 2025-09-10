@@ -380,8 +380,10 @@ main: {
         $transcripts_file = basename($LR_bam);
         $transcripts_file =~ s/\.bam$//;
         $transcripts_file = "$transcripts_file.fasta.gz";
-        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file \" ";
+        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
         $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
+
+        
     }
     
     $transcripts_file = abs_path($transcripts_file);
@@ -398,8 +400,18 @@ main: {
         # use existing bam file.
         # extract chimeric alignments.
         $mm2_chim_align_prelim_bam = $LR_bam;
+
+        if ( (! defined($num_total_reads)) || $num_total_reads < 1) {
+            $num_total_reads = &count_reads_from_bam($LR_bam);
+        }
     }
     else {
+
+        # get total number of reads for FFPM calc
+        if ( (! defined($num_total_reads)) || $num_total_reads < 1) {
+            $num_total_reads = &count_reads_from_transcripts_input($transcripts_file);
+        }
+        
         my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric";
            
         my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
@@ -424,11 +436,6 @@ main: {
 
     $pipeliner->run();
 
-    # get total number of reads for FFPM calc
-    if ( (! defined($num_total_reads)) || $num_total_reads < 1) {
-        $num_total_reads = &count_reads_from_transcripts_input($transcripts_file);
-    }
-    
     
     # Extract candidate chimeric reads and create FI list
     my $MIN_FFPM_PHASE1 = $MIN_FFPM * $FRAC_FFPM_THRESH_PHASE1;
@@ -559,12 +566,10 @@ main: {
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.extract_fusions.ok"));
 
     $pipeliner->run();
-
-    my $LR_total_count = &get_total_read_count("$transcripts_file.LR_read_count.txt");
     
     my $fusions_filename = "$intermediates_dir/LR-FI.mm2.fusion_transcripts.breakpoint_info.tsv";
 
-    $cmd = "$UTILDIR/incorporate_LR_FFPM.pl --fusions $fusions_filename --num_LR_total $LR_total_count --output_file $fusions_filename.w_LR_FFPM";
+    $cmd = "$UTILDIR/incorporate_LR_FFPM.pl --fusions $fusions_filename --num_LR_total $num_total_reads --output_file $fusions_filename.w_LR_FFPM";
     $pipeliner->add_commands(new Command($cmd, "added_LR_FFPM.ok"));
     $fusions_filename = "$fusions_filename.w_LR_FFPM";
     
@@ -918,16 +923,42 @@ sub get_total_read_count {
 ####
 sub count_reads_from_transcripts_input {
     my ($transcripts_file) = @_;
-    
-    if ($transcripts_file =~ /\.(fasta|fa)(\.gz)?$/i) {
-        return(&count_reads_from_transcripts_fastA($transcripts_file));
-    }
-    elsif($transcripts_file =~ /\.(fastq|fq)(\.gz)?$/i) {
-        return(&count_reads_from_transcripts_fastQ($transcripts_file));
+
+    my $num_reads = -1;
+
+    my $read_count_file = basename($transcripts_file) . ".LR_read_count";
+    if (-e $read_count_file) {
+        $num_reads = &get_total_read_count($read_count_file);
+        if ($num_reads > 0) {
+            return($num_reads);
+        }
+        else {
+            confess "Error, got $num_reads from $read_count_file";
+        }
     }
     else {
-        confess "Error, not recognizing type of reads file: $transcripts_file";
+        
+        if ($transcripts_file =~ /\.(fasta|fa)(\.gz)?$/i) {
+            $num_reads = &count_reads_from_transcripts_fastA($transcripts_file);
+        }
+        elsif($transcripts_file =~ /\.(fastq|fq)(\.gz)?$/i) {
+            $num_reads = &count_reads_from_transcripts_fastQ($transcripts_file);
+        }
+        else {
+            confess "Error, not recognizing type of reads file: $transcripts_file";
+        }
+        if ($num_reads > 0) {
+            open(my $ofh, ">$read_count_file") or die "Error, cannot write to $read_count_file";
+            print $ofh "$num_reads\n";
+            close $ofh;
+            
+            return($num_reads);
+        }
+        else {
+            confess "Error, got $num_reads from $transcripts_file";
+        }
     }
+        
 }
 
 
@@ -970,6 +1001,34 @@ sub count_reads_from_transcripts_fastQ {
     return($num_total_reads);
 }
 
+
+####
+sub count_reads_from_bam {
+    my ($bam_file) = @_;
+
+    my $bam_read_counts_file = basename($bam_file) . ".primary_read_counts";
+    if (! -e $bam_read_counts_file) {
+        
+        my $cmd = "samtools flagstat $bam_file > $bam_read_counts_file";
+        &process_cmd($cmd);
+
+    }
+
+    my $num_reads = -1;
+    open(my $fh, $bam_read_counts_file) or die "Error, cannot open file: $bam_read_counts_file";
+    while(<$fh>) {
+        chomp;
+        my @parts = split(/\s+/);
+        if ($parts[-1] eq "primary") {
+            $num_reads = $parts[0];
+            last;
+        }
+    }
+    if ($num_reads < 0) {
+        confess "Error, found $num_reads from $bam_read_counts_file";
+    }
+    return($num_reads);
+}
 
 
 ####
