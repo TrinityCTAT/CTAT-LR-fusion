@@ -376,33 +376,14 @@ main: {
                                   -checkpoint_dir => "$intermediates_dir/__checkpts",
         );
     
-    # make fasta file from fastq
-    
-
-    # first, check if gzipped.
-    if ($transcripts_file =~ /\.gz$/) {
-        my $uncompressed_transcripts_file = basename($transcripts_file);
-        $uncompressed_transcripts_file =~ s/\.gz$//;
-        my $cmd = "gunzip -c $transcripts_file > $uncompressed_transcripts_file";
-        $pipeliner->add_commands(new Command($cmd, "gunzip_transcripts.ok"));
-        $transcripts_file = "$uncompressed_transcripts_file";
-    }
-     
-    if ($transcripts_file =~ /(fastq|fq)$/i) {
-        # convert from fastq to fasta
-        my $cmd = "seqtk seq -a $transcripts_file > $transcripts_file.fasta";
-        $pipeliner->add_commands(new Command($cmd, "fastq_to_fasta_seqtk.ok"));
-
-        $transcripts_file = "$transcripts_file.fasta";
-    } # if input is an alignment file, we can get fasta from it directly
-    elsif ($LR_bam) {
-        my $uncompressed_transcripts_file = basename($LR_bam);
-        $uncompressed_transcripts_file =~ s/\.bam$//;
-        my $cmd = "samtools fasta -@ $CPU $LR_bam > $uncompressed_transcripts_file.fasta";
+    if ($LR_bam) {
+        $transcripts_file = basename($LR_bam);
+        $transcripts_file =~ s/\.bam$//;
+        $transcripts_file = "$transcripts_file.fasta.gz";
+        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file";
         $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
-        $transcripts_file = "$uncompressed_transcripts_file.fasta";
     }
-
+    
     $transcripts_file = abs_path($transcripts_file);
     
     ####################################################
@@ -445,16 +426,7 @@ main: {
 
     # get total number of reads for FFPM calc
     if ( (! defined($num_total_reads)) || $num_total_reads < 1) {
-
-        $num_total_reads = `grep '>' $transcripts_file | wc -l `;
-        if ($?) {
-            die "Error, cmd: \"grep '>' $transcripts_file | wc -l  \" died with ret $?";
-        }
-        chomp $num_total_reads;
-        $num_total_reads = int($num_total_reads);
-        unless($num_total_reads > 0) {
-            die "Error, could not count number of reads from file: $transcripts_file (shouldnt happen....)";
-        }
+        $num_total_reads = &count_reads_from_transcripts_input($transcripts_file);
     }
     
     
@@ -465,7 +437,7 @@ main: {
     my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
     my $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
     $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl "
-        . " --trans_fasta $transcripts_file "
+        . " --reads $transcripts_file "
         . " --chims_described $chims_described_outfile "
         . " --max_exon_delta $MAX_EXON_DELTA "
         . " --num_total_reads $num_total_reads "
@@ -928,19 +900,76 @@ sub get_total_read_count {
     my ($total_read_count_filename) = @_;
 
     unless (-e $total_read_count_filename) {
-	die "Error, cannot locate file: $total_read_count_filename";
+        die "Error, cannot locate file: $total_read_count_filename";
     }
     
     open(my $fh, "$total_read_count_filename") or die "Error, cannot open file: $total_read_count_filename";
     my $total_read_count = <$fh>;
     chomp $total_read_count;
-
+    
     unless ($total_read_count =~ /^\d+$/) {
-	die "Error, not interpreting total read count [$total_read_count] as integer value";
+        die "Error, not interpreting total read count [$total_read_count] as integer value";
     }
-
+    
     return($total_read_count);
 }
+
+
+####
+sub count_reads_from_transcripts_input {
+    my ($transcripts_file) = @_;
+    
+    if ($transcripts_file =~ /\.(fasta|fa)(\.gz)?$/i) {
+        return(&count_reads_from_transcripts_fastA($transcripts_file));
+    }
+    elsif($transcripts_file =~ /\.(fastq|fq)(\.gz)?$/i) {
+        return(&count_reads_from_transcripts_fastQ($transcripts_file));
+    }
+    else {
+        confess "Error, not recognizing type of reads file: $transcripts_file";
+    }
+}
+
+
+####
+sub count_reads_from_transcripts_fastA {
+    my ($transcripts_file) = @_;
+
+    my $cat = ($transcripts_file =~ /\.gz$/) ? "zcat" : "cat";
+
+    my $cmd = "bash -c \"set -eou pipefail && $cat $transcripts_file | grep '>' | wc -l \" ";
+    $num_total_reads = `$cmd`;
+    if ($?) {
+        die "Error, cmd: $cmd died with ret $?";
+    }
+    chomp $num_total_reads;
+    $num_total_reads = int($num_total_reads);
+    unless($num_total_reads > 0) {
+        die "Error, could not count number of reads from file: $transcripts_file (shouldnt happen....)";
+    }
+    return($num_total_reads);
+}
+
+
+####
+sub count_reads_from_transcripts_fastQ {
+    my ($transcripts_file) = @_;
+
+    my $cat = ($transcripts_file =~ /\.gz$/) ? "zcat" : "cat";
+
+    my $cmd = "bash -c \"set -eou pipefail && $cat $transcripts_file | wc -l \" ";
+    $num_total_reads = `$cmd`;
+    if ($?) {
+        die "Error, cmd: $cmd died with ret $?";
+    }
+    chomp $num_total_reads;
+    $num_total_reads = int($num_total_reads) / 4;
+    unless($num_total_reads > 0) {
+        die "Error, could not count number of reads from file: $transcripts_file (shouldnt happen....)";
+    }
+    return($num_total_reads);
+}
+
 
 
 ####

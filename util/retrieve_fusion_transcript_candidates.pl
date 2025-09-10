@@ -7,6 +7,7 @@ use Carp;
 use FindBin;
 use lib ("$FindBin::Bin/../PerlLib");
 use Fasta_reader;
+use Fastq_reader;
 use File::Basename;
 use Process_cmd;
 use Pipeliner;
@@ -19,7 +20,7 @@ my $usage = <<__EOUSAGE__;
 
 #########################################################################################################
 #
-# --trans_fasta <string>     transcripts.fasta for long reads
+# --reads <string>             fastA or fastQ file containing reads
 #
 # --chims_described <string>   chims.descripbed file.
 #
@@ -41,7 +42,7 @@ __EOUSAGE__
     ;
 
 
-my $trans_fasta;
+my $reads_file;
 my $chims_described;
 my $MAX_EXON_DELTA;
 my $help_flag;
@@ -54,7 +55,7 @@ my $num_total_reads;
 my $ALT_MAX_EXON_DELTA = 1000;
 
 &GetOptions ( 'help|h' => \$help_flag,
-              'trans_fasta=s' => \$trans_fasta,
+              'reads=s' => \$reads_file,
               'chims_described=s' => \$chims_described,
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
               'output_prefix=s' => \$output_prefix,
@@ -67,8 +68,8 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($trans_fasta) {
-    print STDERR "\n\nERROR - must specify --trans_fasta <string> \n";
+unless ($reads_file) {
+    print STDERR "\n\nERROR - must specify --reads <string> \n";
     die $usage;
 }
 
@@ -99,11 +100,11 @@ unless (defined ($min_FFPM) ) {
 }
 
 
-$trans_fasta = &ensure_full_path($trans_fasta);
+$reads_file = &ensure_full_path($reads_file);
 $chims_described = &ensure_full_path($chims_described);
 
 
-foreach my $file ($trans_fasta, $chims_described) {
+foreach my $file ($reads_file, $chims_described) {
     unless (-s $file) {
         confess "Error, cannot locate file $file";
     }
@@ -126,7 +127,7 @@ main: {
     
     
     # store the total number of reads.
-    open (my $ofh, ">$trans_fasta.LR_read_count.txt") or die $!;
+    open (my $ofh, ">$reads_file.LR_read_count.txt") or die $!;
     print $ofh "$num_total_reads\n";
     close $ofh;
     
@@ -154,9 +155,12 @@ main: {
     }
 
     open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
+
+    my $reads_file_type = &get_reads_file_type($reads_file);
+
+    my $reader = ($reads_file_type eq "FASTA") ? new Fasta_reader($reads_file) : new Fastq_reader($reads_file);
     
-    my $fasta_reader = new Fasta_reader($trans_fasta);
-    while (my $seq_obj = $fasta_reader->next()) {
+    while (my $seq_obj = $reader->next()) {
         my $accession = $seq_obj->get_accession();
 
         if (exists $reads_want{$accession}) {
@@ -380,3 +384,22 @@ sub write_candidates_summary {
 
     return;
 }
+
+
+####
+sub get_reads_file_type {
+    my ($reads_file) = @_;
+
+    if ($reads_file =~ /\.(fasta|fa)(\.gz)?$/i) {
+        return("FASTA");
+    }
+    elsif ($reads_file =~ /\.(fastq|fq)(\.gz)?/i) {
+        return("FASTQ");
+    }
+    else {
+        confess "Error, cannot determine if $reads_file is fastA or fastQ format based on the filename";
+    }
+}
+
+
+
