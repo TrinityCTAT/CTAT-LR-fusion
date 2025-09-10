@@ -122,16 +122,6 @@ main: {
         
     @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_FFPM, $MAX_EXON_DELTA);
     
-    
-
-    
-    
-    # store the total number of reads.
-    open (my $ofh, ">$reads_file.LR_read_count.txt") or die $!;
-    print $ofh "$num_total_reads\n";
-    close $ofh;
-    
-    
     my $num_fusion_candidates = scalar(@fusion_candidates);
     my $num_fusion_candidate_reads = 0;
     my %reads_want;
