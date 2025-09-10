@@ -380,7 +380,7 @@ main: {
         $transcripts_file = basename($LR_bam);
         $transcripts_file =~ s/\.bam$//;
         $transcripts_file = "$transcripts_file.fasta.gz";
-        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file";
+        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file \" ";
         $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
     }
     
