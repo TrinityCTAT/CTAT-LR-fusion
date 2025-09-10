@@ -11,8 +11,8 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v1.1.2";
-#my $VERSION = "DEVEL";
+my $VERSION = "v1.1.2-postdev";
+
 
 my $CPU = 4;
 my $output_directory = "ctat_LR_fusion_outdir";
