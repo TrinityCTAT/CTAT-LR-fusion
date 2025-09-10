@@ -98,14 +98,16 @@ sub new {
         confess "Error, cannot identify first line as read name line: " . $text_lines;
     }
     
-    my ($read_name, $rest) = split(/\s+/, $name_line);
-    $read_name =~ s/^\@//;
+    my ($full_read_name, $rest) = split(/\s+/, $name_line);
+    $full_read_name =~ s/^\@//;
     
     
     my $pair_dir = 0; # assume single
 
-    if ($read_name =~ /^(\S+)\/([12])$/) {
-        $read_name = $1;
+    my $core_read_name = $full_read_name;
+    
+    if ($core_read_name =~ /^(\S+)\/([12])$/) {
+        $core_read_name = $1;
         $pair_dir = $2;
     }
     elsif (defined($rest) && $rest =~ /^([12]):/) {
@@ -113,12 +115,14 @@ sub new {
     }
     
     
-    my $self = { core_read_name => $read_name,
-                 pair_dir => $pair_dir, # (0, 1, or 2), with 0 = unpaired.
-                 sequence => $seq_line,
-                 quals => $qual_line,
-                 record => $text_lines,
-             };
+    my $self = {
+        full_read_name => $full_read_name,
+        core_read_name => $core_read_name,
+        pair_dir => $pair_dir, # (0, 1, or 2), with 0 = unpaired.
+        sequence => $seq_line,
+        quals => $qual_line,
+        record => $text_lines,
+    };
     
 
     bless ($self, $packagename);
@@ -134,12 +138,16 @@ sub get_core_read_name {
 ####
 sub get_full_read_name {
     my $self = shift;
-    
-    my $read_name = $self->{core_read_name};
-    if ($self->{pair_dir}) {
-        return(join("/", $read_name, $self->{pair_dir}));
-    }
+    return($self->{full_read_name});
 }
+
+####
+sub get_accession {
+    my $self = shift;
+    my $read_name = $self->get_full_read_name();
+    return($read_name);
+}
+
 
 ####
 sub get_sequence {
