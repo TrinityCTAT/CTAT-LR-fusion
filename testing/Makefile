@@ -3,6 +3,8 @@ simple: test_excl_shortreads
 
 both:  test_incl_shortreads test_excl_shortreads
 
+basic_long_read_tests: test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2
+
 all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input test_oncoreads test_oncoreads_chim_candidates_only test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2
 
 

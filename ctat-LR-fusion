@@ -446,32 +446,24 @@ main: {
     my $MIN_FFPM_PHASE1 = $MIN_FFPM * $FRAC_FFPM_THRESH_PHASE1;
     my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
     my $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa";
-    my $FI_listing = "$chim_candidates_output_prefix.FI_listing";
-    my $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
-    $cmd = "$UTILDIR/retrieve_fusion_transcript_candidates.pl "
-        . " --reads $transcripts_file "
+
+    $cmd = "$UTILDIR/identify_prelim_fusion_transcript_candidates.pl "
         . " --chims_described $chims_described_outfile "
         . " --max_exon_delta $MAX_EXON_DELTA "
         . " --num_total_reads $num_total_reads "
         . " --min_num_LR $MIN_NUM_LR " 
         . " --min_FFPM $MIN_FFPM_PHASE1 "
-        . " --max_candidates $MAX_PHASE1_CANDIDATES"
         . " --output_prefix $chim_candidates_output_prefix";
-    if ($CHIM_CANDIDATES_ONLY) {
-        $cmd .= " --skip_read_extraction ";
-    }
+    $pipeliner->add_commands(new Command($cmd, "identify_prelim_fusion_candidates.ok"));
+
+    my $FI_listing = "$chim_candidates_output_prefix.preliminary_candidates_info_from_chims_described.read_support_filtered";
     
-    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
-
-
     # annotate candidates
     $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $FI_listing > ${FI_listing}.wAnnot";
     $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.FI_listing.annotate.ok"));
 
     $FI_listing = "$FI_listing.wAnnot";
-
-    
-    
+        
     unless ($NO_ANNOTATION_FILTER) {
         
         $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $FI_listing --genome_lib_dir $genome_lib_dir --custom_exclusions NEIGHBORS_OVERLAP ";
@@ -480,7 +472,26 @@ main: {
         $FI_listing = "$FI_listing.annot_filter.pass";
         
     }
-        
+
+    $cmd = "$UTILDIR/filter_max_candidate_fusions.pl --input_file $FI_listing --output_file $FI_listing.max_phase1_candidates --max_candidates $MAX_PHASE1_CANDIDATES";
+    $pipeliner->add_commands(new Command($cmd, "filter_max_phase1_candidates.ok"));
+    
+    $FI_listing = "$FI_listing.max_phase1_candidates";
+    
+
+    ## extract reads for the target fusions
+    $cmd = "$UTILDIR/retrieve_reads_for_fusion_transcript_candidates.pl "
+        . " --chims_described $chims_described_outfile "
+        . " --reads $transcripts_file "
+        . " --fusions $FI_listing "
+        . " --output_prefix $chim_candidates_output_prefix";
+
+    if ($CHIM_CANDIDATES_ONLY) {
+        $cmd .= " --skip_read_extraction ";
+    }
+    
+    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
+
     $pipeliner->run();
 
     if ($CHIM_CANDIDATES_ONLY) {
@@ -496,6 +507,10 @@ main: {
 
 
     ## update reads fasta
+    my $FI_listing_with_reads;
+    
+    $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
+    
     $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
     $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
     
