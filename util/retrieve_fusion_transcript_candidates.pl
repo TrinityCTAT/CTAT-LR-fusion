@@ -36,6 +36,8 @@ my $usage = <<__EOUSAGE__;
 #
 # --num_total_reads <int>     number of total reads (used for FFPM calculation)
 #
+# --max_candidates <int>      maximum number of candidates to explore for fusion contig modeling.
+#
 ###########################################################################################################
 
 
@@ -53,6 +55,7 @@ my $min_FFPM;
 my $SKIP_READ_EXTRACTION = 0;
 my $num_total_reads;
 my $min_num_LR = 0;
+my $max_candidates = -1;
 
 my $ALT_MAX_EXON_DELTA = 1000;
 
@@ -65,6 +68,7 @@ my $ALT_MAX_EXON_DELTA = 1000;
               'skip_read_extraction' => \$SKIP_READ_EXTRACTION,
               'num_total_reads=i' => \$num_total_reads,
               'min_num_LR=i' => \$min_num_LR,
+              "max_candidates=i" => \$max_candidates,
     );
 
 if ($help_flag) {
@@ -102,6 +106,11 @@ unless (defined ($min_FFPM) ) {
     die $usage;
 }
 
+unless ($max_candidates > 0) {
+    print STDERR " --max_candidates must be set > 0 ";
+    die $usage;
+}
+
 
 $reads_file = &ensure_full_path($reads_file);
 $chims_described = &ensure_full_path($chims_described);
@@ -124,8 +133,16 @@ main: {
     &write_candidates_summary($prelim_candidates_summary_outfile, \@fusion_candidates);
         
     @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA);
-    
+
+
     my $num_fusion_candidates = scalar(@fusion_candidates);
+    if ($num_fusion_candidates > $max_candidates) {
+        print STDERR "Number of phase-1 fusion candidates: $num_fusion_candidates exceeds maximum of $max_candidates so taking the top $max_candidates candidates to pursue here.\n";
+        @fusion_candidates = @fusion_candidates[0..($max_candidates-1)];
+    }
+    
+    # prep candidates
+    $num_fusion_candidates = scalar(@fusion_candidates);
     my $num_fusion_candidate_reads = 0;
     my %reads_want;
     foreach my $fusion_candidate (@fusion_candidates) {
@@ -136,6 +153,8 @@ main: {
             }
         }
     }
+
+ 
     
     print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs involving $num_fusion_candidate_reads reads.\n";
 
