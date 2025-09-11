@@ -77,6 +77,8 @@ my $min_trans_overlap_length = 100;
 
 my $FRAC_FFPM_THRESH_PHASE1 = 0.6;
 
+my $MAX_PHASE1_CANDIDATES = 5000; # avoid combinatorial explosion
+
 my $usage = <<__EOUSAGE__;
 
 ############################################################################################################
@@ -102,8 +104,6 @@ my $usage = <<__EOUSAGE__;
 #  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID) minimap2 alignments < --min_per_id are discarded.
 #
 #  --min_FFPM <float>              :min fusion expression (default: $MIN_FFPM FFPM - meaning at least 1 fusion read per 10 M total reads )
-#
-#  --frac_FFPM_phase1 <float>      :fraction of the --min_FFPM value for phase1 fusion candidates (before fusion contig modeling) (default: $FRAC_FFPM_THRESH_PHASE1)
 #
 #  --output|o <string>             :output directory name (default: $output_directory)
 #
@@ -170,6 +170,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  --chim_candidates_only             : stop after first phase of identifying candidates before evaluating them in the second phase.
 #                                                     see chimera candidate listing as: output_dir/fusion_intermediates_dir/chimeric_read_candidates.FI_listing
+#  --frac_FFPM_phase1 <float>      :fraction of the --min_FFPM value for phase1 fusion candidates (before fusion contig modeling) (default: $FRAC_FFPM_THRESH_PHASE1)
+#
+#  --max_phase1_candidates <int>    : maximum number of gene-pairs to explore going into phase2 (fusion contig modeling) from phase1. (default: $MAX_PHASE1_CANDIDATES)
 #
 #  --num_total_reads <int>            : number of total reads. If not set, the reads are counted from the input file. This value will be used for FFPM calculations.
 #
@@ -265,6 +268,8 @@ my $num_total_reads;
               'num_total_reads=i' => \$num_total_reads,
 
               'frac_FFPM_phase1=f' => \$FRAC_FFPM_THRESH_PHASE1,
+
+              'max_phase1_candidates=i' => \$MAX_PHASE1_CANDIDATES,
 );
 
 
@@ -450,6 +455,7 @@ main: {
         . " --num_total_reads $num_total_reads "
         . " --min_num_LR $MIN_NUM_LR " 
         . " --min_FFPM $MIN_FFPM_PHASE1 "
+        . " --max_candidates $MAX_PHASE1_CANDIDATES"
         . " --output_prefix $chim_candidates_output_prefix";
     if ($CHIM_CANDIDATES_ONLY) {
         $cmd .= " --skip_read_extraction ";
