@@ -448,6 +448,7 @@ main: {
         . " --chims_described $chims_described_outfile "
         . " --max_exon_delta $MAX_EXON_DELTA "
         . " --num_total_reads $num_total_reads "
+        . " --min_num_LR $MIN_NUM_LR " 
         . " --min_FFPM $MIN_FFPM_PHASE1 "
         . " --output_prefix $chim_candidates_output_prefix";
     if ($CHIM_CANDIDATES_ONLY) {

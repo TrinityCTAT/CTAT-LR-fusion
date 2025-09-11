@@ -28,6 +28,8 @@ my $usage = <<__EOUSAGE__;
 #
 # --output_prefix <string>    prefix name for output files (prefix).transcripts.fa and (prefix).FI_listing
 #
+# --min_num_LR <int>          minimum number of long reads required as evidence.
+# 
 # --min_FFPM <float>          min fusion expression for candidates to pursue
 #
 # --skip_read_extraction      dont extract the fusion reads, just generate the prelim report.
@@ -50,7 +52,7 @@ my $output_prefix;
 my $min_FFPM;
 my $SKIP_READ_EXTRACTION = 0;
 my $num_total_reads;
-
+my $min_num_LR = 0;
 
 my $ALT_MAX_EXON_DELTA = 1000;
 
@@ -62,6 +64,7 @@ my $ALT_MAX_EXON_DELTA = 1000;
               'min_FFPM=f' => \$min_FFPM,
               'skip_read_extraction' => \$SKIP_READ_EXTRACTION,
               'num_total_reads=i' => \$num_total_reads,
+              'min_num_LR=i' => \$min_num_LR,
     );
 
 if ($help_flag) {
@@ -120,7 +123,7 @@ main: {
     my $prelim_candidates_summary_outfile = "$output_prefix.preliminary_candidates_info";
     &write_candidates_summary($prelim_candidates_summary_outfile, \@fusion_candidates);
         
-    @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_FFPM, $MAX_EXON_DELTA);
+    @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA);
     
     my $num_fusion_candidates = scalar(@fusion_candidates);
     my $num_fusion_candidate_reads = 0;
@@ -291,7 +294,7 @@ sub compute_median_val {
 
 ####
 sub filter_chims {
-    my ($fusion_candidates_aref, $num_total_reads, $min_FFPM, $MAX_EXON_DELTA) = @_;
+    my ($fusion_candidates_aref, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA) = @_;
 
 
     my @fusion_candidates;
@@ -305,6 +308,8 @@ sub filter_chims {
         my $max_alt_exon_delta = max($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
         
         if ($ffpm >= $min_FFPM
+            &&
+            $num_reads >= $min_num_LR
             &&
             (
              # deltas within range on both sides
