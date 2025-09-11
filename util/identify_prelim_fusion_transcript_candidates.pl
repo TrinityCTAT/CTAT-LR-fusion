@@ -20,9 +20,7 @@ my $usage = <<__EOUSAGE__;
 
 #########################################################################################################
 #
-# --reads <string>             fastA or fastQ file containing reads
-#
-# --chims_described <string>   chims.descripbed file.
+# --chims_described <string>   chims.described file.
 #
 # --max_exon_delta <int>       maximum dist from ref exon boundary
 #
@@ -32,11 +30,7 @@ my $usage = <<__EOUSAGE__;
 # 
 # --min_FFPM <float>          min fusion expression for candidates to pursue
 #
-# --skip_read_extraction      dont extract the fusion reads, just generate the prelim report.
-#
 # --num_total_reads <int>     number of total reads (used for FFPM calculation)
-#
-# --max_candidates <int>      maximum number of candidates to explore for fusion contig modeling.
 #
 ###########################################################################################################
 
@@ -46,37 +40,26 @@ __EOUSAGE__
     ;
 
 
-my $reads_file;
 my $chims_described;
 my $MAX_EXON_DELTA;
 my $help_flag;
 my $output_prefix;
 my $min_FFPM;
-my $SKIP_READ_EXTRACTION = 0;
 my $num_total_reads;
 my $min_num_LR = 0;
-my $max_candidates = -1;
 
 my $ALT_MAX_EXON_DELTA = 1000;
 
 &GetOptions ( 'help|h' => \$help_flag,
-              'reads=s' => \$reads_file,
               'chims_described=s' => \$chims_described,
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
               'output_prefix=s' => \$output_prefix,
               'min_FFPM=f' => \$min_FFPM,
-              'skip_read_extraction' => \$SKIP_READ_EXTRACTION,
               'num_total_reads=i' => \$num_total_reads,
               'min_num_LR=i' => \$min_num_LR,
-              "max_candidates=i" => \$max_candidates,
     );
 
 if ($help_flag) {
-    die $usage;
-}
-
-unless ($reads_file) {
-    print STDERR "\n\nERROR - must specify --reads <string> \n";
     die $usage;
 }
 
@@ -106,20 +89,13 @@ unless (defined ($min_FFPM) ) {
     die $usage;
 }
 
-unless ($max_candidates > 0) {
-    print STDERR " --max_candidates must be set > 0 ";
-    die $usage;
-}
 
 
-$reads_file = &ensure_full_path($reads_file);
 $chims_described = &ensure_full_path($chims_described);
 
 
-foreach my $file ($reads_file, $chims_described) {
-    unless (-s $file) {
-        confess "Error, cannot locate file $file";
-    }
+unless (-s $chims_described) {
+    confess "Error, cannot locate file $chims_described";
 }
 
 
@@ -128,67 +104,20 @@ main: {
     my @fusion_candidates = &parse_chims($chims_described);
     
     @fusion_candidates = reverse sort {$a->{num_reads} <=> $b->{num_reads}} @fusion_candidates;
+
+    my $num_fusion_candidates = scalar(@fusion_candidates);
+    print STDERR "Pre-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs\n";
     
-    my $prelim_candidates_summary_outfile = "$output_prefix.preliminary_candidates_info";
-    &write_candidates_summary($prelim_candidates_summary_outfile, \@fusion_candidates);
+    &write_candidates_summary("$output_prefix.preliminary_candidates_info_from_chims_described", \@fusion_candidates);
         
     @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA);
 
-
-    my $num_fusion_candidates = scalar(@fusion_candidates);
-    if ($num_fusion_candidates > $max_candidates) {
-        print STDERR "Number of phase-1 fusion candidates: $num_fusion_candidates exceeds maximum of $max_candidates so taking the top $max_candidates candidates to pursue here.\n";
-        @fusion_candidates = @fusion_candidates[0..($max_candidates-1)];
-    }
-    
-    # prep candidates
     $num_fusion_candidates = scalar(@fusion_candidates);
-    my $num_fusion_candidate_reads = 0;
-    my %reads_want;
-    foreach my $fusion_candidate (@fusion_candidates) {
-        $num_fusion_candidate_reads += $fusion_candidate->{num_reads};
-        unless($SKIP_READ_EXTRACTION) {
-            foreach my $read (@{$fusion_candidate->{read_names}}) {
-                $reads_want{$read} = 1;
-            }
-        }
-    }
-
- 
     
-    print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs involving $num_fusion_candidate_reads reads.\n";
+    print STDERR "Post-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs\n";
 
-    &write_candidates_summary("$output_prefix.FI_listing", \@fusion_candidates);
+    &write_candidates_summary("$output_prefix.preliminary_candidates_info_from_chims_described.read_support_filtered", \@fusion_candidates);
 
-
-    if ($SKIP_READ_EXTRACTION) {
-        print STDERR "-skipping read extraction and stopping here. See prelim candidates: $output_prefix.FI_listing\n\n";
-        exit(0);
-    }
-
-    open(my $ofh_fasta, ">$output_prefix.transcripts.fa") or die $!;
-
-    my $reads_file_type = &get_reads_file_type($reads_file);
-
-    my $reader = ($reads_file_type eq "FASTA") ? new Fasta_reader($reads_file) : new Fastq_reader($reads_file);
-    
-    while (my $seq_obj = $reader->next()) {
-        my $accession = $seq_obj->get_accession();
-
-        if (exists $reads_want{$accession}) {
-            my $sequence = $seq_obj->get_sequence();
-            print $ofh_fasta ">$accession\n$sequence\n";
-            delete $reads_want{$accession};
-        }
-    }
-    close $ofh_fasta;
-    
-    if (%reads_want) {
-        confess "Error, missing some reads during extraction: " . Dumper(\%reads_want);
-    }
-    
-    print STDERR "-done. See files: $output_prefix.transcripts.fa and $output_prefix.FI_listing\n";
-        
     exit(0);
         
 }
@@ -355,8 +284,7 @@ sub write_candidates_summary {
     
     
     open(my $ofh, ">$prelim_candidates_summary_outfile") or die $!;
-    open(my $ofh_wreads, ">$prelim_candidates_summary_outfile.with_reads") or die $!;
-    
+        
     my $header = join("\t", "#FusionName",
                       "median_deltaA", "median_deltaB",
                       "min_deltaA", "min_deltaB",
@@ -365,8 +293,7 @@ sub write_candidates_summary {
                       "num_reads");
     
     print $ofh "$header\n";
-    print $ofh_wreads "$header\treads\n";
-
+    
         
 
     foreach my $fusion_info_struct (@$fusion_candidates_aref) {
@@ -387,33 +314,11 @@ sub write_candidates_summary {
             
             print $ofh "$outline\n";
 
-            my $reads = join(",", @{$fusion_info_struct->{read_names}});
-
-            print $ofh_wreads "$outline\t$reads\n";
-            
-
+    
     }
 
     close $ofh;
 
     return;
 }
-
-
-####
-sub get_reads_file_type {
-    my ($reads_file) = @_;
-
-    if ($reads_file =~ /\.(fasta|fa)(\.gz)?$/i) {
-        return("FASTA");
-    }
-    elsif ($reads_file =~ /\.(fastq|fq)(\.gz)?/i) {
-        return("FASTQ");
-    }
-    else {
-        confess "Error, cannot determine if $reads_file is fastA or fastQ format based on the filename";
-    }
-}
-
-
 

@@ -34,10 +34,11 @@ my %reads_want;
     while(my $row = $delim_reader->get_row()) {
         my $fusion_name = $row->{'#FusionName'} or die "Error, no #FusionName entry for row: " . Dumper($row);
         if ($fusions_want{$fusion_name}) {
-            my $reads_str = $row->{'reads'} or die "Error, no reads extracted for row: " . Dumper($row);
-            foreach my $readname (split(',', $reads_str)) {
-                $reads_want{$readname} = 1;
-            }
+            my $reads_str = $row->{'read'} or die "Error, no read extracted for row: " . Dumper($row);
+            #foreach my $readname (split(',', $reads_str)) {
+            #$reads_want{$readname} = 1;
+            #}
+            $reads_want{$reads_str} = 1;
         }
     }
 }
