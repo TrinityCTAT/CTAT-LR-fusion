@@ -77,7 +77,7 @@ my $min_trans_overlap_length = 100;
 
 my $FRAC_FFPM_THRESH_PHASE1 = 0.6;
 
-my $MAX_PHASE1_CANDIDATES = 5000; # avoid combinatorial explosion
+my $MAX_PHASE1_CANDIDATES = 10000; # avoid combinatorial explosion
 
 my $usage = <<__EOUSAGE__;
 
