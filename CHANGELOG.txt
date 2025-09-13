@@ -1,3 +1,11 @@
+# CTAT-LR-fusion v1.2.0 Setp 13, 2025
+- when min FFPM set to zero, limits to 10k candidates 
+- uses FusionInspector contig builder that's much faster using a preloaded genome instead of per-contig region retrievals
+- overhaul to leverage max number of phase 1 candidates and perform read-based and annot-based filtering before applying the max candidate cutoff
+- adding --frac_FFPM_phase1 for soft phase 1 thresholding
+- uses gzipped fasta and fastqs to save disk space
+
+      
 # CTAT-LR-Fusion v1.1.2 Aug 7, 2025
 - respect the --min_num_LR and --min_LR_novel_junction_support and ensure --min_LR_novel_junction_support always >= --min_num_LR 
 
