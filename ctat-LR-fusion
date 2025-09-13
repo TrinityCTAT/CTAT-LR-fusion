@@ -79,6 +79,9 @@ my $FRAC_FFPM_THRESH_PHASE1 = 0.6;
 
 my $MAX_PHASE1_CANDIDATES = 10000; # avoid combinatorial explosion
 
+my $USE_GENOME_DECOY = 0; # experimental, will revisit
+
+
 my $usage = <<__EOUSAGE__;
 
 ############################################################################################################
@@ -552,9 +555,27 @@ main: {
 
     my $FI_contigs_file = "$intermediates_dir/LR-FI_targets.fa";
     my $FI_annots_gtf = "$intermediates_dir/LR-FI_targets.gtf";
-    
-    &prep_minimap2_reference($FI_contigs_file, $intermediates_dir, $FI_mm2, $FI_splice_bed, $FI_annots_gtf);
 
+
+    my $FI_contigs_file_for_mm2 = $FI_contigs_file;
+    my $FI_annots_gtf_for_mm2 = $FI_annots_gtf;
+    
+    if ($USE_GENOME_DECOY) {
+        $FI_contigs_file_for_mm2 = "$FI_contigs_file.wGenomeDecoy.fa";
+        
+        $cmd = "cat $FI_contigs_file $genome_fa > $FI_contigs_file_for_mm2";
+        $pipeliner->add_commands(new Command($cmd, "make_wDecoy_genome_fa.ok"));
+
+        $FI_annots_gtf_for_mm2 = "$FI_annots_gtf.wGenomeDecoy.gtf";
+        
+        $cmd = "cat $FI_annots_gtf $REF_GTF > $FI_annots_gtf_for_mm2";
+        $pipeliner->add_commands(new Command($cmd, "make_wDecoy_gtf_fa.ok"));
+
+        $pipeliner->run();
+    }
+        
+    &prep_minimap2_reference($FI_contigs_file_for_mm2, $intermediates_dir, $FI_mm2, $FI_splice_bed, $FI_annots_gtf_for_mm2);
+    
     my $LR_FI_mm2_bam = "$intermediates_dir/LR-FI.mm2.bam";
     ## run mm2 using the chimeric candidates:
     my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2";
