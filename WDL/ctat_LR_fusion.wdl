@@ -9,11 +9,13 @@ workflow ctat_LR_fusion_wf {
        File? LR_bam
        File genome_lib_tar_mm2_only
        File genome_lib_tar_with_STAR_idx
-       Float min_FFPM = 0.1
-       Int min_per_id = 90
-       Int min_J = 1
-       Int min_sumJS = 1    
-       Int min_novel_junction_support = 1
+       Float? min_FFPM
+       Int? min_num_LR
+       Int? min_LR_novel_junction_support
+       Int? min_per_id
+       Int? min_J
+       Int? min_sumJS
+       Int? min_novel_junction_support
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
@@ -24,7 +26,6 @@ workflow ctat_LR_fusion_wf {
        Int preemptible = 0
        Int maxRetries = 0
        Float disk_space_multiplier = 3.0
-
       
      }
     
@@ -35,6 +36,8 @@ workflow ctat_LR_fusion_wf {
           LR_bam=LR_bam,
           genome_lib_tar= if defined(illumina_left_fq) then genome_lib_tar_with_STAR_idx else genome_lib_tar_mm2_only,
           min_FFPM = min_FFPM,
+          min_num_LR = min_num_LR,
+          min_LR_novel_junction_support=min_LR_novel_junction_support,
           min_per_id=min_per_id,
           min_J=min_J,
           min_sumJS=min_sumJS,    
@@ -60,11 +63,13 @@ task CTAT_LR_FUSION_TASK {
        File? transcripts
        File? LR_bam
        File genome_lib_tar
-       Int min_per_id
-       Float min_FFPM
-       Int min_J
-       Int min_sumJS    
-       Int min_novel_junction_support
+       Int? min_per_id
+       Float? min_FFPM
+       Int? min_num_LR
+       Int? min_LR_novel_junction_support
+       Int? min_J
+       Int? min_sumJS    
+       Int? min_novel_junction_support
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
@@ -98,10 +103,14 @@ task CTAT_LR_FUSION_TASK {
                 ~{"-T " + transcripts } \
                 ~{"--LR_bam " + LR_bam } \
                 --genome_lib_dir ctat_genome_lib_build_dir \
-                --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
-                --min_FFPM ~{min_FFPM} \
-                --min_per_id ~{min_per_id} \
-                --CPU ~{cpu} \
+                ~{"--min_num_LR " + min_num_LR } \
+                ~{"--min_LR_novel_junction_support " + min_LR_novel_junction_support } \
+                ~{"--min_J " + min_J } \
+                ~{"--min_sumJS " + min_sumJS } \
+                ~{"--min_novel_junction_support " + min_novel_junction_support } \
+                ~{"--min_FFPM " + min_FFPM } \
+                ~{"--min_per_id " + min_per_id } \
+                ~{"--CPU " + cpu } \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
