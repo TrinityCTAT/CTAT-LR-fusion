@@ -9,7 +9,8 @@ workflow ctat_LR_fusion_wf {
        File? LR_bam
        File genome_lib_tar_mm2_only
        File genome_lib_tar_with_STAR_idx
-       Int min_per_id=90
+       Float min_FFPM = 0.1
+       Int min_per_id = 90
        Int min_J = 1
        Int min_sumJS = 1    
        Int min_novel_junction_support = 1
@@ -33,6 +34,7 @@ workflow ctat_LR_fusion_wf {
           transcripts=transcripts,
           LR_bam=LR_bam,
           genome_lib_tar= if defined(illumina_left_fq) then genome_lib_tar_with_STAR_idx else genome_lib_tar_mm2_only,
+          min_FFPM = min_FFPM,
           min_per_id=min_per_id,
           min_J=min_J,
           min_sumJS=min_sumJS,    
@@ -59,6 +61,7 @@ task CTAT_LR_FUSION_TASK {
        File? LR_bam
        File genome_lib_tar
        Int min_per_id
+       Float min_FFPM
        Int min_J
        Int min_sumJS    
        Int min_novel_junction_support
@@ -96,6 +99,7 @@ task CTAT_LR_FUSION_TASK {
                 ~{"--LR_bam " + LR_bam } \
                 --genome_lib_dir ctat_genome_lib_build_dir \
                 --min_J ~{min_J}  --min_sumJS ~{min_sumJS} --min_novel_junction_support ~{min_novel_junction_support} \
+                --min_FFPM ~{min_FFPM} \
                 --min_per_id ~{min_per_id} \
                 --CPU ~{cpu} \
                 --vis \
