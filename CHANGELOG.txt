@@ -1,4 +1,4 @@
-# CTAT-LR-fusion v1.2.0 Setp 13, 2025
+# CTAT-LR-fusion v1.2.1 Setp 15, 2025
 - when min FFPM set to zero, limits to 10k candidates 
 - uses FusionInspector contig builder that's much faster using a preloaded genome instead of per-contig region retrievals
 - overhaul to leverage max number of phase 1 candidates and perform read-based and annot-based filtering before applying the max candidate cutoff
