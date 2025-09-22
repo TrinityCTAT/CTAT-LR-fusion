@@ -28,6 +28,9 @@ test_longOnly_fagz:
 	../ctat-LR-fusion -T transcripts.fa.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.fagz --min_novel_junction_support 1 --min_trans_overlap_length 75
 
 
+test_longOnly_fa_max_rigor:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.LRonly_max_rigor  --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --max_rigor
+
 test_longOnly_fa_nophase2:
 	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.nophase2  --min_num_LR 2  --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75
 

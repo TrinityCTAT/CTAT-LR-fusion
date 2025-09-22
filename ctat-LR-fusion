@@ -79,8 +79,9 @@ my $FRAC_FFPM_THRESH_PHASE1 = 0.6;
 
 my $MAX_PHASE1_CANDIDATES = 10000; # avoid combinatorial explosion
 
-my $USE_GENOME_DECOY = 0; # experimental, will revisit
+my $USE_GENOME_DECOY = 0;
 
+my $MAX_RIGOR_FLAG = 0;
 
 my $usage = <<__EOUSAGE__;
 
@@ -143,6 +144,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  #############
 #  Misc options:
+#
+#  --max_rigor                     : upon defining candidates, researches the entire read set against a combination of the whole genome and fusion contig models.
 #
 #  --max_exon_delta <int>          : maximum allowed distance of fusion breakpoint from reference exon boundary in initial candidate search. (default: $MAX_EXON_DELTA)
 #
@@ -273,6 +276,9 @@ my $num_total_reads;
               'frac_FFPM_phase1=f' => \$FRAC_FFPM_THRESH_PHASE1,
 
               'max_phase1_candidates=i' => \$MAX_PHASE1_CANDIDATES,
+
+              'max_rigor' => \$MAX_RIGOR_FLAG,
+              
 );
 
 
@@ -323,6 +329,11 @@ my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 if ($MIN_LR_NOVEL < $MIN_NUM_LR) {
     print STDERR "** warning, --min_LR_novel_junction_support set < --min_num_LR, so resetting to $MIN_NUM_LR\n";
     $MIN_LR_NOVEL = $MIN_NUM_LR;
+}
+
+
+if ($MAX_RIGOR_FLAG) {
+    $USE_GENOME_DECOY = 1;
 }
 
 
@@ -388,10 +399,16 @@ main: {
         $transcripts_file = basename($LR_bam);
         $transcripts_file =~ s/\.bam$//;
         $transcripts_file = "$transcripts_file.fasta.gz";
-        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
-        $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
 
-        
+        if ($MAX_RIGOR_FLAG) {
+            # using all the reads
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file \" ";
+            $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.max_rigor.ok"));
+            
+        } else {
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
+            $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
+        }    
     }
     
     $transcripts_file = abs_path($transcripts_file);
@@ -489,7 +506,7 @@ main: {
         . " --fusions $FI_listing "
         . " --output_prefix $chim_candidates_output_prefix";
 
-    if ($CHIM_CANDIDATES_ONLY) {
+    if ($CHIM_CANDIDATES_ONLY || $MAX_RIGOR_FLAG) {
         $cmd .= " --skip_read_extraction ";
     }
     
@@ -513,13 +530,18 @@ main: {
     my $FI_listing_with_reads;
     
     $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
-    
-    $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
-    $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
-    
-    $chim_candidates_fasta = "$chim_candidates_fasta.revised.fasta";
 
+    if ($MAX_RIGOR_FLAG) {
+        $chim_candidates_fasta = $transcripts_file;
 
+    } else {
+            
+        $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
+        $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
+        
+        $chim_candidates_fasta = "$chim_candidates_fasta.revised.fasta";
+    }
+    
     $pipeliner->run();
     
         
