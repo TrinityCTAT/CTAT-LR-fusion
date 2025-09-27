@@ -663,9 +663,18 @@ main: {
     
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 
-        
+
+    my $bam_for_gff3_conversion = $LR_FI_mm2_bam;
+    
+    if ($USE_GENOME_DECOY) {
+        ## extract the fusions that correspond to just the fusion contigs.
+        $bam_for_gff3_conversion = "$LR_FI_mm2_bam.fusion_contigs_only.bam";
+        $cmd = "bash -c \"set -eou pipefail && samtools view -h $LR_FI_mm2_bam | awk 'BEGIN{OFS=\\\"\\t\\\"} /^@/ {print; next} \\\$3 ~ /--/ {print}' | samtools view -bo $bam_for_gff3_conversion - \"";
+        $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.extract_fusion_contig_alignments.ok"));
+    }
+    
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
-    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $bam_for_gff3_conversion --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
     # get seq-similar regions to help in filtering alignment evidence.
