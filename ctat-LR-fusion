@@ -79,8 +79,12 @@ my $FRAC_FFPM_THRESH_PHASE1 = 0.6;
 
 my $MAX_PHASE1_CANDIDATES = 10000; # avoid combinatorial explosion
 
-my $USE_GENOME_DECOY = 0; # experimental, will revisit
+my $USE_GENOME_DECOY = 0;
 
+my $MAX_RIGOR_FLAG = 0;
+
+my $incl_fusion_targets_file;
+my $only_fusion_targets_file;
 
 my $usage = <<__EOUSAGE__;
 
@@ -143,6 +147,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  #############
 #  Misc options:
+#
+#  --max_rigor                     : upon defining candidates, researches the entire read set against a combination of the whole genome and fusion contig models.
+#
+#  --incl_fusion_targets <string>   : file containing fusion pairs to include in the fusion evidence survey (imposes --max_rigor )
+#  --only_fusion_targets <string>      : only surveys the provided list of fusion targets (iposes --max_rigor)
 #
 #  --max_exon_delta <int>          : maximum allowed distance of fusion breakpoint from reference exon boundary in initial candidate search. (default: $MAX_EXON_DELTA)
 #
@@ -273,6 +282,12 @@ my $num_total_reads;
               'frac_FFPM_phase1=f' => \$FRAC_FFPM_THRESH_PHASE1,
 
               'max_phase1_candidates=i' => \$MAX_PHASE1_CANDIDATES,
+
+              'max_rigor' => \$MAX_RIGOR_FLAG,
+
+              'incl_fusion_targets=s' => \$incl_fusion_targets_file,
+              'only_fusion_targets=s' => \$only_fusion_targets_file,
+              
 );
 
 
@@ -318,6 +333,14 @@ if ($LR_bam) {
     $LR_bam = &ensure_full_path($LR_bam);
 }
 
+if ($incl_fusion_targets_file) {
+    $incl_fusion_targets_file = &ensure_full_path($incl_fusion_targets_file);
+}
+if ($only_fusion_targets_file) {
+    $only_fusion_targets_file = &ensure_full_path($only_fusion_targets_file);
+}
+
+
 my $long_reads_only_flag = ($left_fq eq "NA" && $right_fq eq "NA") ? 1:0;
 
 if ($MIN_LR_NOVEL < $MIN_NUM_LR) {
@@ -325,6 +348,19 @@ if ($MIN_LR_NOVEL < $MIN_NUM_LR) {
     $MIN_LR_NOVEL = $MIN_NUM_LR;
 }
 
+
+if ($incl_fusion_targets_file || $only_fusion_targets_file) {
+    # ensure both aren't indicated.
+    if ($incl_fusion_targets_file && $only_fusion_targets_file) {
+        die "Error, can specify --incl_fusion_targets or --only_fusion_targets (not both)";
+    }
+
+    $MAX_RIGOR_FLAG = 1;
+}
+
+if ($MAX_RIGOR_FLAG) {
+    $USE_GENOME_DECOY = 1;
+}
 
 my $UTILDIR = "$FindBin::RealBin/util";
 
@@ -383,18 +419,30 @@ main: {
     my $pipeliner = new Pipeliner(-verbose => 2,
                                   -checkpoint_dir => "$intermediates_dir/__checkpts",
         );
-    
+
+
     if ($LR_bam) {
         $transcripts_file = basename($LR_bam);
         $transcripts_file =~ s/\.bam$//;
         $transcripts_file = "$transcripts_file.fasta.gz";
-        my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
-        $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
 
-        
+        if ($MAX_RIGOR_FLAG) {
+            # using all the reads
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file \" ";
+            $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.max_rigor.ok"));
+            
+        } else {
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
+            $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
+        }    
     }
     
     $transcripts_file = abs_path($transcripts_file);
+
+    $pipeliner->run();
+
+
+
     
     ####################################################
     # run minimap2 to identify potential fusion transcripts
@@ -404,6 +452,8 @@ main: {
     my $mm2_chim_align_prelim_bam = "$mm2_intermediate_output_file_prefix.prelim.bam";
     my $mm2_chim_align_bam = "$mm2_intermediate_output_file_prefix.bam";
 
+
+    
     if ($LR_bam) {
         # use existing bam file.
         # extract chimeric alignments.
@@ -419,123 +469,153 @@ main: {
         if ( (! defined($num_total_reads)) || $num_total_reads < 1) {
             $num_total_reads = &count_reads_from_transcripts_input($transcripts_file);
         }
+
+        unless ($only_fusion_targets_file) {
         
-        my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric";
+            my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric";
            
-        my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
-        $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
-    }
-    
-    my $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -o $mm2_chim_align_bam\" ";
-    $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
-    
-    # convert to gff3 alignment format
-    $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_chim_align_bam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
-    $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
-    
-    ###############################
-    ## generate initial chim report
-    ###############################
-
-    my $chims_described_outfile = "$mm2_intermediate_output_file_prefix.chims_described";
-    $cmd = "$UTILDIR/genome_gff3_to_chim_summary.pl --align_gff3 $mm2_intermediate_output_file_prefix.gff3 --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
-    
-    $pipeliner->add_commands(new Command($cmd, "chims_described.ok"));
-
-    $pipeliner->run();
-
-    
-    # Extract candidate chimeric reads and create FI list
-    my $MIN_FFPM_PHASE1 = $MIN_FFPM * $FRAC_FFPM_THRESH_PHASE1;
-    my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
-    my $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa";
-
-    $cmd = "$UTILDIR/identify_prelim_fusion_transcript_candidates.pl "
-        . " --chims_described $chims_described_outfile "
-        . " --max_exon_delta $MAX_EXON_DELTA "
-        . " --num_total_reads $num_total_reads "
-        . " --min_num_LR $MIN_NUM_LR " 
-        . " --min_FFPM $MIN_FFPM_PHASE1 "
-        . " --output_prefix $chim_candidates_output_prefix";
-    $pipeliner->add_commands(new Command($cmd, "identify_prelim_fusion_candidates.ok"));
-
-    my $FI_listing = "$chim_candidates_output_prefix.preliminary_candidates_info_from_chims_described.read_support_filtered";
-    
-    # annotate candidates
-    $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $FI_listing > ${FI_listing}.wAnnot";
-    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.FI_listing.annotate.ok"));
-
-    $FI_listing = "$FI_listing.wAnnot";
-        
-    unless ($NO_ANNOTATION_FILTER) {
-        
-        $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $FI_listing --genome_lib_dir $genome_lib_dir --custom_exclusions NEIGHBORS_OVERLAP ";
-        $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
-        
-        $FI_listing = "$FI_listing.annot_filter.pass";
-        
-    }
-
-    $cmd = "$UTILDIR/filter_max_candidate_fusions.pl --input_file $FI_listing --output_file $FI_listing.max_phase1_candidates --max_candidates $MAX_PHASE1_CANDIDATES";
-    $pipeliner->add_commands(new Command($cmd, "filter_max_phase1_candidates.ok"));
-    
-    $FI_listing = "$FI_listing.max_phase1_candidates";
-    
-
-    ## extract reads for the target fusions
-    $cmd = "$UTILDIR/retrieve_reads_for_fusion_transcript_candidates.pl "
-        . " --chims_described $chims_described_outfile "
-        . " --reads $transcripts_file "
-        . " --fusions $FI_listing "
-        . " --output_prefix $chim_candidates_output_prefix";
-
-    if ($CHIM_CANDIDATES_ONLY) {
-        $cmd .= " --skip_read_extraction ";
-    }
-    
-    $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
-
-    $pipeliner->run();
-
-    if ($CHIM_CANDIDATES_ONLY) {
-        print STDERR "** --chim_candidates_only flag set, stopping here now. See: $FI_listing \n\n";
-        exit(0);
-    }
-    
-
-    if (-e $FI_listing && (&count_num_fusions($FI_listing) == 0)) {
-        print STDERR "Sorry, no chimeric candidates to pursue. Stopping here.\n";
-        exit(0);
+            my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
+            $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
+        }
     }
 
 
-    ## update reads fasta
-    my $FI_listing_with_reads;
-    
-    $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
-    
-    $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
-    $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
-    
-    $chim_candidates_fasta = "$chim_candidates_fasta.revised.fasta";
 
-
-    $pipeliner->run();
-    
+    my $FI_listing;
+    my $chim_candidates_fasta = $transcripts_file; # the reads that get searched in phase 2 for fusion evidence. Default whole read set, but may restrict it to candidate fusion reads below depending on params.
         
+    unless ($only_fusion_targets_file) {
+    
+        my $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -o $mm2_chim_align_bam\" ";
+        $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
+        
+        # convert to gff3 alignment format
+        $cmd = "$UTILDIR/SAM_to_gxf.pl  --sam $mm2_chim_align_bam --format gff3 >  $mm2_intermediate_output_file_prefix.gff3";
+        $pipeliner->add_commands(new Command($cmd, "mm2_sam_to_gff3.ok"));
+        
+        ###############################
+        ## generate initial chim report
+        ###############################
+        
+        my $chims_described_outfile = "$mm2_intermediate_output_file_prefix.chims_described";
+        $cmd = "$UTILDIR/genome_gff3_to_chim_summary.pl --align_gff3 $mm2_intermediate_output_file_prefix.gff3 --annot_gtf $REF_GTF --min_per_id $MIN_PER_ID  > $chims_described_outfile";
+        
+        $pipeliner->add_commands(new Command($cmd, "chims_described.ok"));
+        
+        $pipeliner->run();
+        
+    
+        # Extract candidate chimeric reads and create FI list
+        my $MIN_FFPM_PHASE1 = $MIN_FFPM * $FRAC_FFPM_THRESH_PHASE1;
+        my $chim_candidates_output_prefix = "$intermediates_dir/chimeric_read_candidates";
+        
+        
+        $cmd = "$UTILDIR/identify_prelim_fusion_transcript_candidates.pl "
+            . " --chims_described $chims_described_outfile "
+            . " --max_exon_delta $MAX_EXON_DELTA "
+            . " --num_total_reads $num_total_reads "
+            . " --min_num_LR $MIN_NUM_LR " 
+            . " --min_FFPM $MIN_FFPM_PHASE1 "
+            . " --output_prefix $chim_candidates_output_prefix";
+        $pipeliner->add_commands(new Command($cmd, "identify_prelim_fusion_candidates.ok"));
+        
+        $FI_listing = "$chim_candidates_output_prefix.preliminary_candidates_info_from_chims_described.read_support_filtered";
+    
+        # annotate candidates
+        $cmd = "$FindBin::Bin/FusionAnnotator/FusionAnnotator --genome_lib_dir $genome_lib_dir --annotate $FI_listing > ${FI_listing}.wAnnot";
+        $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.FI_listing.annotate.ok"));
+        
+        $FI_listing = "$FI_listing.wAnnot";
+        
+        unless ($NO_ANNOTATION_FILTER) {
+            
+            $cmd = "$FindBin::Bin/FusionFilter/util/filter_by_annotation_rules.pl --fusions  $FI_listing --genome_lib_dir $genome_lib_dir --custom_exclusions NEIGHBORS_OVERLAP ";
+            $pipeliner->add_commands(new Command($cmd, "filter_by_annot_rules.ok"));
+            
+            $FI_listing = "$FI_listing.annot_filter.pass";
+            
+        }
+        
+        $cmd = "$UTILDIR/filter_max_candidate_fusions.pl --input_file $FI_listing --output_file $FI_listing.max_phase1_candidates --max_candidates $MAX_PHASE1_CANDIDATES";
+        $pipeliner->add_commands(new Command($cmd, "filter_max_phase1_candidates.ok"));
+        
+        $FI_listing = "$FI_listing.max_phase1_candidates";
+        
+
+        ## extract reads for the target fusions
+        $cmd = "$UTILDIR/retrieve_reads_for_fusion_transcript_candidates.pl "
+            . " --chims_described $chims_described_outfile "
+            . " --reads $transcripts_file "
+            . " --fusions $FI_listing "
+            . " --output_prefix $chim_candidates_output_prefix";
+        
+        if ($CHIM_CANDIDATES_ONLY || $MAX_RIGOR_FLAG) {
+            $cmd .= " --skip_read_extraction ";
+        }
+        
+        $pipeliner->add_commands(new Command($cmd, "chim_candidates_fasta.skip_read_extraction=${CHIM_CANDIDATES_ONLY}.ok"));
+        
+        $pipeliner->run();
+        
+        if ($CHIM_CANDIDATES_ONLY) {
+            print STDERR "** --chim_candidates_only flag set, stopping here now. See: $FI_listing \n\n";
+            exit(0);
+        }
+    
+
+        if ( (!defined($incl_fusion_targets_file)) && -e $FI_listing && (&count_num_fusions($FI_listing) == 0)) {
+            print STDERR "Sorry, no chimeric candidates to pursue. Stopping here.\n";
+            exit(0);
+        }
+
+
+        if (! $MAX_RIGOR_FLAG) {
+        
+            ## update reads fasta
+            $chim_candidates_fasta = "$chim_candidates_output_prefix.transcripts.fa"; # temp resetting from default
+            
+            my $FI_listing_with_reads = "$chim_candidates_output_prefix.FI_listing.with_reads";
+            
+            
+            $cmd = "$FindBin::Bin/util/revise_fusion_reads_fasta.pl $FI_listing $FI_listing_with_reads $chim_candidates_fasta > $chim_candidates_fasta.revised.fasta";
+            $pipeliner->add_commands(new Command($cmd, "revise_chimeric_reads_fasta.ok"));
+            
+            $chim_candidates_fasta = "$chim_candidates_fasta.revised.fasta"; # final resetting from default whole input read set.
+            
+            $pipeliner->run();
+            
+        }
+    }
+    
+    
     ##############################################################################################################
     ## start new checkpoints for phase 2 involving FusionInspector like approach for precise breakpoint resolution
     
     $pipeliner = new Pipeliner(-verbose => 2,
                                   -checkpoint_dir => "$intermediates_dir/__checkpts_phase2",
         );
+
+
+    my $FI_targets_file;
+    if ($incl_fusion_targets_file) {
+        $FI_targets_file = "$intermediates_dir/found_and_specified_FI_targets_combined.tsv";
+        if (! defined($FI_listing)) { croak "Error, FI_listing not set. Shouldn't happen..."; }
+        my $cmd = "cat $FI_listing $incl_fusion_targets_file > $FI_targets_file";
+        $pipeliner->add_commands(new Command($cmd, "concat_incl_fusions_list.ok"));
+    }
+    elsif ($only_fusion_targets_file) {
+        $FI_targets_file = $only_fusion_targets_file;
+    }
+    else {
+        $FI_targets_file = $FI_listing;
+    }
     
     # create FI contigs.
-    $cmd = "$FI_UTILDIR/fusion_pair_to_mini_genome_join.pl "
-        . " --fusions $FI_listing "
+    my $cmd = "$FI_UTILDIR/fusion_pair_to_mini_genome_join.pl "
+        . " --fusions $FI_targets_file "
         . " --gtf $REF_GTF"
         . " --genome_fa $genome_lib_dir/ref_genome.fa"
-        . " --out_prefix $intermediates_dir/LR-FI_targets";
+        . " --out_prefix $intermediates_dir/LR-FI_targets ";
 
     unless ($NO_SHRINK_INTRONS) {
         $cmd .= " --shrink_introns --max_intron_length $shrink_intron_max_length ";
@@ -583,9 +663,18 @@ main: {
     
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 
-        
+
+    my $bam_for_gff3_conversion = $LR_FI_mm2_bam;
+    
+    if ($USE_GENOME_DECOY) {
+        ## extract the fusions that correspond to just the fusion contigs.
+        $bam_for_gff3_conversion = "$LR_FI_mm2_bam.fusion_contigs_only.bam";
+        $cmd = "bash -c \"set -eou pipefail && samtools view -h $LR_FI_mm2_bam | awk 'BEGIN{OFS=\\\"\\t\\\"} /^@/ {print; next} \\\$3 ~ /--/ {print}' | samtools view -bo $bam_for_gff3_conversion - \"";
+        $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.extract_fusion_contig_alignments.ok"));
+    }
+    
     # important, capture secondary alignments so paralogs accounted for here w/ full read and single cell representation
-    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $intermediates_dir/LR-FI.mm2.bam --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
+    $cmd = "$UTILDIR/SAM_to_gxf.pl --sam $bam_for_gff3_conversion --format gff3 --allow_non_primary > $intermediates_dir/LR-FI.mm2.gff3";
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.sam_to_gff3.ok"));
     
     # get seq-similar regions to help in filtering alignment evidence.

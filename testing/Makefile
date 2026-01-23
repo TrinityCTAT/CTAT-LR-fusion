@@ -5,7 +5,7 @@ both:  test_incl_shortreads test_excl_shortreads
 
 basic_long_read_tests: test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2
 
-all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input test_oncoreads test_oncoreads_chim_candidates_only test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2
+all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input test_oncoreads test_oncoreads_chim_candidates_only test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2 test_longOnly_fa_max_rigor test_longOnly_fa_incl_targets test_longOnly_fa_only_targets
 
 
 all: all_long_read_tests test_incl_shortreads  test_longOnly_fqgz test_longOnly_fq test_incl_coding_effect
@@ -26,6 +26,17 @@ test_longOnly_fa: test_excl_shortreads
 
 test_longOnly_fagz: 
 	../ctat-LR-fusion -T transcripts.fa.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.fagz --min_novel_junction_support 1 --min_trans_overlap_length 75
+
+
+test_longOnly_fa_max_rigor:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.LRonly_max_rigor  --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --max_rigor
+
+
+test_longOnly_fa_incl_targets:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.LRonly_incl_targets  --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --max_rigor --incl_fusion_targets fusion_supplement_list.txt
+
+test_longOnly_fa_only_targets:
+	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.LRonly_only_targets  --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --max_rigor --only_fusion_targets fusion_supplement_list.txt
 
 
 test_longOnly_fa_nophase2:
