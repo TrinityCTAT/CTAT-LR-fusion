@@ -97,7 +97,9 @@
      - Map to overlapping genes using interval tree
      - Calculate **delta** = distance from alignment breakpoint to nearest exon boundary
      - Consider both sense and antisense orientations
+     - **Check for fold-back alignment** - detects artifactual alignments where segments physically overlap on opposite strands
      - Report mapping(s) with minimum combined delta (deltaA + deltaB)
+     - Flag fold-back alignments with "FOLDBACK" tag in output
 
 **Key Variables:**
 - `deltaA` - Distance from left breakpoint to nearest exon boundary in geneA
@@ -107,13 +109,16 @@
 
 **Output Format:**
 ```
-#transcript  num_alignments  align_descr(s)  geneA;deltaA;trans_brkptA;chrA:coordA;geneB;deltaB;trans_brkptB;chrB:coordB;geneA--geneB
+#transcript  num_alignments  align_descr(s)  geneA;deltaA;trans_brkptA;chrA:coordA;geneB;deltaB;trans_brkptB;chrB:coordB;geneA--geneB;[FOLDBACK]
 ```
+
+The optional `FOLDBACK` flag indicates fold-back alignments where segments physically overlap on opposite strands.
 
 ### Step 2: Aggregate and Compute Statistics ([util/identify_prelim_fusion_transcript_candidates.pl](util/identify_prelim_fusion_transcript_candidates.pl))
 
 **Aggregation (lines 126-172):**
 - Group all reads by fusion pair (geneA--geneB)
+- **Track fold-back alignments** - count reads flagged as "FOLDBACK" separately
 - Collect arrays of: deltaA values, deltaB values, read names, transcript breakpoint distances
 
 **Statistics Computed (lines 175-186):**
@@ -129,10 +134,12 @@
 
 ```perl
 FFPM = (num_reads / num_total_reads) × 1,000,000
+foldback_frac = num_foldback_reads / num_reads
 
 Pass if:
   FFPM >= min_FFPM  AND
   num_reads >= min_num_LR  AND
+  foldback_frac <= max_foldback_frac  AND
   (
     (min_deltaA <= MAX_EXON_DELTA  AND  min_deltaB <= MAX_EXON_DELTA)
       OR
@@ -154,6 +161,7 @@ Pass if:
 - `--min_LR_novel_junction_support` (default: 2) - Min LR for non-canonical junctions
 - `--min_per_id` (default: 70) - Minimum percent identity for alignments
 - `--min_trans_overlap_length` (default: 100) - Min read overlap per gene
+- `--max_foldback_frac` (default: 0.5) - Maximum fraction of reads that can be fold-backs (set to 1.0 to disable)
 
 ### FFPM and Phase Control
 - `--min_FFPM` (default: 0.1) - Minimum fusion fragments per million
@@ -410,9 +418,10 @@ cd testing
 2. **Checkpointing:** All steps use Pipeliner with checkpoints for resumability
 3. **Minimum delta strategy:** Use best-aligned breakpoints for candidate selection
 4. **Flexible breakpoint tolerance:** Accommodate real fusions with ambiguous junctions
-5. **Resource management:** Limit phase 1 candidates to prevent combinatorial explosion
-6. **Evidence integration:** Combine long and short read evidence when available
-7. **Sequence-aware filtering:** Exclude evidence from sequence-similar regions
+5. **Fold-back tracking:** Flag and count (but don't filter) overlapping opposite-strand alignments
+6. **Resource management:** Limit phase 1 candidates to prevent combinatorial explosion
+7. **Evidence integration:** Combine long and short read evidence when available
+8. **Sequence-aware filtering:** Exclude evidence from sequence-similar regions
 
 ---
 

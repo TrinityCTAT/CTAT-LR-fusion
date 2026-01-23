@@ -22,6 +22,8 @@ my $output_directory = "ctat_LR_fusion_outdir";
 my $MIN_NUM_LR = 1;
 my $MIN_LR_NOVEL = 2;
 
+my $MAX_FOLDBACK_FRAC = 0.5;
+
 
 # short read filters
 my $MIN_J = 1;
@@ -132,6 +134,8 @@ my $usage = <<__EOUSAGE__;
 #  --min_LR_novel_junction_support <int>   : min number of long reads with support at noncanonical splice breakpoint (eg. maybe not spliced!) (default: $MIN_LR_NOVEL)
 #                                                (note, if --min_num_LR > --min_LR_novel_junction_support, then --min_LR_novel_junction_support is set to --min_num_LR  )
 #  
+#  --max_foldback_frac <float>   : maximum fraction of reads that can be fold-backs (overlapping alignments on opposite strands). (default: $MAX_FOLDBACK_FRAC, set to 1.0 to disable)
+#
 #  --min_trans_overlap_length <int>           : minimum read overlap length for each gene in the fusion pair, default: $min_trans_overlap_length
 #
 # Short read abundance filters:
@@ -262,6 +266,7 @@ my $num_total_reads;
               'extract_fusion_LR_fasta=s' => \$extract_fusion_LR_fasta,
 
               'min_num_LR=i' => \$MIN_NUM_LR,
+              'max_foldback_frac=f' => \$MAX_FOLDBACK_FRAC,
               'min_LR_novel_junction_support=i' => \$MIN_LR_NOVEL,
               'min_FFPM=f' => \$MIN_FFPM,
     
@@ -513,6 +518,7 @@ main: {
         $cmd = "$UTILDIR/identify_prelim_fusion_transcript_candidates.pl "
             . " --chims_described $chims_described_outfile "
             . " --max_exon_delta $MAX_EXON_DELTA "
+            . " --max_foldback_frac $MAX_FOLDBACK_FRAC "
             . " --num_total_reads $num_total_reads "
             . " --min_num_LR $MIN_NUM_LR " 
             . " --min_FFPM $MIN_FFPM_PHASE1 "

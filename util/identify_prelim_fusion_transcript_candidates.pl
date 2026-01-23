@@ -32,6 +32,8 @@ my $usage = <<__EOUSAGE__;
 #
 # --num_total_reads <int>     number of total reads (used for FFPM calculation)
 #
+# --max_foldback_frac <float> maximum fraction of reads that can be fold-backs (default: 0.5, set to 1.0 to disable filtering)
+#
 ###########################################################################################################
 
 
@@ -47,6 +49,7 @@ my $output_prefix;
 my $min_FFPM;
 my $num_total_reads;
 my $min_num_LR = 0;
+my $max_foldback_frac = 0.5;
 
 my $ALT_MAX_EXON_DELTA = 1000;
 
@@ -57,6 +60,7 @@ my $ALT_MAX_EXON_DELTA = 1000;
               'min_FFPM=f' => \$min_FFPM,
               'num_total_reads=i' => \$num_total_reads,
               'min_num_LR=i' => \$min_num_LR,
+              'max_foldback_frac=f' => \$max_foldback_frac,
     );
 
 if ($help_flag) {
@@ -110,7 +114,7 @@ main: {
     
     &write_candidates_summary("$output_prefix.preliminary_candidates_info_from_chims_described", \@fusion_candidates);
         
-    @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA);
+    @fusion_candidates = &filter_chims(\@fusion_candidates, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA, $max_foldback_frac);
 
     $num_fusion_candidates = scalar(@fusion_candidates);
     
@@ -151,9 +155,15 @@ sub parse_chims {
             $chrA_n_coordA,
             $geneB, $deltaB, $trans_brkptB, 
             $chrB_n_coordB,
-            $fusion_name) = split(/;/, $fusion_info);
+            $fusion_name, $foldback_flag) = split(/;/, $fusion_info);
 
 
+        # foldback_flag may not be defined in older chims_described files
+        $foldback_flag = "" unless defined($foldback_flag);
+        
+        # Track fold-back reads (overlapping alignments on opposite strands)
+        # These are potential artifacts but we count them rather than filter them out
+        my $is_foldback = ($foldback_flag eq "FOLDBACK") ? 1 : 0;
         
         my $fusion_info_struct = $fusion_pairs{$fusion_name};
         
@@ -165,6 +175,7 @@ sub parse_chims {
                                                                   deltaB => [],
                                                                   read_names => [],
                                                                   num_reads => 0,
+                                                                  num_foldback_reads => 0,
                                                                   trans_brkpt_delta => [],
             };
         }
@@ -173,7 +184,12 @@ sub parse_chims {
         push (@{$fusion_info_struct->{deltaA}}, $deltaA);
         push (@{$fusion_info_struct->{deltaB}}, $deltaB);
         push (@{$fusion_info_struct->{read_names}}, $trans_acc);
+        # Track fold-back reads separately to help identify potential artifacts
         $fusion_info_struct->{num_reads}++;
+        
+        if ($is_foldback) {
+            $fusion_info_struct->{num_foldback_reads}++;
+        }
 
         my $trans_brkpt_delta = abs($trans_brkptB - $trans_brkptA);
         push(@{$fusion_info_struct->{trans_brkpt_delta}}, $trans_brkpt_delta);
@@ -242,7 +258,7 @@ sub compute_median_val {
 
 ####
 sub filter_chims {
-    my ($fusion_candidates_aref, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA) = @_;
+    my ($fusion_candidates_aref, $num_total_reads, $min_num_LR, $min_FFPM, $MAX_EXON_DELTA, $max_foldback_frac) = @_;
 
 
     my @fusion_candidates;
@@ -255,9 +271,15 @@ sub filter_chims {
         my $min_alt_exon_delta = min($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
         my $max_alt_exon_delta = max($fusion_candidate->{min_deltaA}, $fusion_candidate->{min_deltaB});
         
+        # Calculate fold-back fraction
+        my $foldback_frac = ($num_reads > 0) ? $fusion_candidate->{num_foldback_reads} / $num_reads : 0;
+        
         if ($ffpm >= $min_FFPM
             &&
             $num_reads >= $min_num_LR
+            &&
+            # Filter out fusions with too many fold-back reads
+            $foldback_frac <= $max_foldback_frac
             &&
             (
              # deltas within range on both sides
@@ -290,7 +312,8 @@ sub write_candidates_summary {
                       "min_deltaA", "min_deltaB",
                       "median_trans_brkpt_delta",
                       "min_trans_brkpt_delta",
-                      "num_reads");
+                      "num_reads",
+                      "num_foldback_reads");
     
     print $ofh "$header\n";
     
@@ -310,7 +333,8 @@ sub write_candidates_summary {
                         int($fusion_info_struct->{median_trans_brkpt_delta} + 0.5),
                         $fusion_info_struct->{min_trans_brkpt_delta},
 
-                        $fusion_info_struct->{num_reads});
+                        $fusion_info_struct->{num_reads},
+                        $fusion_info_struct->{num_foldback_reads});
             
             print $ofh "$outline\n";
 

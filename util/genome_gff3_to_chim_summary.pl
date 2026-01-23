@@ -270,10 +270,15 @@ sub evaluate_target_alignments {
                         }
                     
                         
+                        # Check for fold-back alignment and flag it in output
+                        # (fold-backs are tracked but not filtered out)
+                        my $is_foldback = &is_foldback_alignment($left_align, $right_align);
+                        my $foldback_flag = $is_foldback ? "FOLDBACK" : "";
 
                         my @at_exon_junctions = ($left_entry->{gene_id}, $left_entry->{delta}, $left_entry->{trans_brkpt}, $left_entry->{chr} . ":" . $left_entry->{pt_align}, 
                                                  $right_entry->{gene_id}, $right_entry->{delta}, $right_entry->{trans_brkpt}, $right_entry->{chr} . ":" . $right_entry->{pt_align},
-                                                 join("--", $left_entry->{gene_id}, $right_entry->{gene_id}));
+                                                 join("--", $left_entry->{gene_id}, $right_entry->{gene_id}),
+                                                 $foldback_flag);
                         
                         my @chim_align_descrs = ($left_entry->{alignment}->{align_text}, $right_entry->{alignment}->{align_text});
                         
@@ -674,6 +679,38 @@ sub get_overlapping_genes {
     my $overlaps = $interval_tree->fetch($lend, $rend);
 
     return(@$overlaps);
+}
+
+####
+sub is_foldback_alignment {
+    my ($left_align, $right_align) = @_;
+    
+    ## Fold-back alignments are artifacts where a read maps to physically overlapping
+    ## genomic regions on opposite strands. These often arise from inverted repeats,
+    ## RNA secondary structure, or sequencing/library prep artifacts.
+    
+    # Check if alignments are on the same chromosome
+    unless ($left_align->{chr} eq $right_align->{chr}) {
+        return 0; # different chromosomes, not a fold-back
+    }
+    
+    # Check if alignments are on opposite strands
+    unless ($left_align->{orient} ne $right_align->{orient}) {
+        return 0; # same orientation, not a fold-back
+    }
+    
+    # Check for physically overlapping genomic coordinates
+    my $left_lend = $left_align->{lend};
+    my $left_rend = $left_align->{rend};
+    my $right_lend = $right_align->{lend};
+    my $right_rend = $right_align->{rend};
+    
+    # Regions overlap if: left_lend <= right_rend AND right_lend <= left_rend
+    if ($left_lend <= $right_rend && $right_lend <= $left_rend) {
+        return 1; # Physical overlap on opposite strands = fold-back
+    }
+    
+    return 0;
 }
 
 
