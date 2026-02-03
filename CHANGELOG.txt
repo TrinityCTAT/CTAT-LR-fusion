@@ -1,3 +1,10 @@
+# CTAT-LR-fusion v1.3.0 Feb 3, 2026
+- more rigorous filtering of foldback-type alignments
+- added --max_rigor to force using all reads and whole genome decoy in 2nd phase
+- can incorporate target fusions or only focus on specific fusions via --incl_fusion_targets or --only_fusion_targets
+
+
+
 # CTAT-LR-fusion v1.2.1 Setp 15, 2025
 - when min FFPM set to zero, limits to 10k candidates 
 - uses FusionInspector contig builder that's much faster using a preloaded genome instead of per-contig region retrievals
