@@ -148,7 +148,7 @@ WORKDIR $SRC
 
 
 ENV ctat_LR_fusion_version 1.3.0
-ENV CTAT_LR_FUSION_CO 3f70d1696261419619ad948ac745b84f22b89a14
+ENV CTAT_LR_FUSION_CO 2d7e9e4a2e8d6827ea983a1251545ac0f64f59ce
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
