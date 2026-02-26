@@ -94,10 +94,30 @@ main: {
     
     my %target_to_aligns;
     my $prev_target = "";
-    
+
     print STDERR "-loading alignment data\n";
+
+    # Get total line count for progress monitoring
+    my $total_lines = `wc -l < $align_gff3_file`;
+    chomp($total_lines);
+    $total_lines =~ s/^\s+//;
+
+    my $line_counter = 0;
+    my $last_progress_time = time();
+    my $progress_interval = 15; # seconds
+
     open (my $fh, $align_gff3_file) or die $!;
     while (<$fh>) {
+        $line_counter++;
+
+        # Update progress every 15 seconds
+        my $current_time = time();
+        if ($current_time - $last_progress_time >= $progress_interval) {
+            my $pct_done = sprintf("%.1f", ($line_counter / $total_lines) * 100);
+            print STDERR "\r  ... processing alignments: $pct_done% done ($line_counter / $total_lines lines)";
+            $last_progress_time = $current_time;
+        }
+
         if (/^\#/) { next; }
         unless (/\w/) { next; }
 
@@ -134,6 +154,8 @@ main: {
     }
     close $fh;
 
+    # Print final progress with newline
+    print STDERR "\r  ... processing alignments: 100.0% done ($line_counter / $total_lines lines)\n";
 
     # get last one
     if (%target_to_aligns) {
