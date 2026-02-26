@@ -183,8 +183,8 @@ sub evaluate_target_alignments {
     if ($DEBUG) {
         print Dumper(\%target_to_aligns);
     }
-    
-    foreach my $target (keys %target_to_aligns) {
+
+    foreach my $target (sort keys %target_to_aligns) {
      
 
         # examine all the alignments for a given transcript.  A fusion transcript will
@@ -194,7 +194,7 @@ sub evaluate_target_alignments {
         
 
         ## create spans
-        my @span_ids = keys %{$target_to_aligns{$target}};
+        my @span_ids = sort keys %{$target_to_aligns{$target}};
         if (scalar @span_ids < 2) {
             if ($DEBUG) {
                 print STDERR "-skipping $target as non chimeric candidate\n";
@@ -231,9 +231,12 @@ sub evaluate_target_alignments {
 
         my @chim_align_descrs;
         my @at_exon_junctions;
-        
-        
-        @spans = sort {$a->{range_lend}<=>$b->{range_lend}} @spans; # order spans according to transcript coordinates
+
+
+        @spans = sort {$a->{range_lend}<=>$b->{range_lend}
+                       || $a->{range_rend}<=>$b->{range_rend}
+                       || $a->{chr} cmp $b->{chr}
+                       || $a->{lend}<=>$b->{lend}} @spans; # order spans according to transcript coordinates (stable sort)
 
 
         if ($DEBUG) {
@@ -418,12 +421,12 @@ sub parse_ref_annotations {
 ####
 sub build_ref_annot_interval_trees {
     my %chr_to_gene_coords = @_;
-    
-    foreach my $chr (keys %chr_to_gene_coords) {
+
+    foreach my $chr (sort keys %chr_to_gene_coords) {
 
         my $i_tree = $interval_trees{$chr} = Set::IntervalTree->new;
-        
-        foreach my $gene_id (keys %{$chr_to_gene_coords{$chr}}) {
+
+        foreach my $gene_id (sort keys %{$chr_to_gene_coords{$chr}}) {
             
             my @coords = sort {$a<=>$b} @{$chr_to_gene_coords{$chr}->{$gene_id}};
             my $lend = shift @coords;
@@ -475,8 +478,8 @@ sub map_to_annotated_exon_junctions {
     my @hits;
 
     foreach my $gene_id (&get_overlapping_genes($chr, $align_lend, $align_rend)) {
-        
-        foreach my $transcript_id (keys %{$genes{$chr}->{$gene_id}}) {
+
+        foreach my $transcript_id (sort keys %{$genes{$chr}->{$gene_id}}) {
             
             my @exons = @{$genes{$chr}->{$gene_id}->{$transcript_id}};
             

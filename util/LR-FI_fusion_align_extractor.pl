@@ -99,11 +99,11 @@ main: {
     
     my %LR_fusion_trans_ids;
 
-    foreach my $scaffold (keys %scaffold_to_gene_coordsets) {
+    foreach my $scaffold (sort keys %scaffold_to_gene_coordsets) {
 
         my ($left_gene, $right_gene) = split(/--/, $scaffold);
-        
-        my @genes = keys %{$scaffold_to_gene_coordsets{$scaffold}};
+
+        my @genes = sort keys %{$scaffold_to_gene_coordsets{$scaffold}};
 
         if (scalar @genes != 2) {
             die "Error, dont have only two genes for scaffold: $scaffold: " . Dumper(\@genes);
@@ -145,8 +145,8 @@ main: {
 
         ##############################
         # evaluate each read alignment
-        
-        my @LR_accs = keys %{$scaffold_to_LR_coords{$scaffold}};
+
+        my @LR_accs = sort keys %{$scaffold_to_LR_coords{$scaffold}};
         foreach my $LR_acc (@LR_accs) {
             my @LR_coordsets = sort {$a->[0]<=>$b->[0]} @{$scaffold_to_LR_coords{$scaffold}->{$LR_acc}};
             
@@ -356,14 +356,14 @@ sub parse_FI_gtf_filename {
     
     ###############################
     ## Update splice junction info:
-    
-    foreach my $scaffold_id (keys %$scaff_to_gene_trans_to_coords_href) {
+
+    foreach my $scaffold_id (sort keys %$scaff_to_gene_trans_to_coords_href) {
 
         my @fusion_genes = split(/--/, $scaffold_id);
-        
+
         foreach my $fusion_gene (@fusion_genes) {
-        
-            foreach my $transcript_id (keys %{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$fusion_gene}}) {
+
+            foreach my $transcript_id (sort keys %{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$fusion_gene}}) {
             
                 my @coordsets = sort {$a->[0]<=>$b->[0]} @{$scaff_to_gene_trans_to_coords_href->{$scaffold_id}->{$fusion_gene}->{$transcript_id}};
                 
@@ -435,17 +435,17 @@ sub report_LR_fusions {
     open(my $LR_breakpoint_summary_ofh, ">$LR_fusion_breakpoint_summary_filename") or die "Error, cannot write to $LR_fusion_breakpoint_summary_filename";
     
     my %scaff_breakpoint_to_read_support;
-    foreach my $LR_id (keys %$LR_ids_href) {
-        my @scaff_breakpoints = keys %{$LR_ids_href->{$LR_id}};
+    foreach my $LR_id (sort keys %$LR_ids_href) {
+        my @scaff_breakpoints = sort keys %{$LR_ids_href->{$LR_id}};
         foreach my $scaff_breakpoint (@scaff_breakpoints) {
             print "#LRFusionTranscript:\t$LR_id\t$scaff_breakpoint\n";
             push (@{$scaff_breakpoint_to_read_support{$scaff_breakpoint}}, $LR_id);
         }
     }
-    
+
     ## generate fusion breakpoint summary report
     my @fusion_structs;
-    foreach my $breakpoint (keys %scaff_breakpoint_to_read_support) {
+    foreach my $breakpoint (sort keys %scaff_breakpoint_to_read_support) {
         my @LR_reads = @{$scaff_breakpoint_to_read_support{$breakpoint}};
         my $num_reads = scalar(@LR_reads);
         my ($scaffold, $breakpoint_coords) = split(/:/, $breakpoint);
@@ -608,8 +608,8 @@ sub organize_original_coordinate_info {
     
     my %scaffold_to_orig_coords;
 
-    foreach my $scaffold (keys %$orig_coord_info_href) {
-        my @coordinates = keys %{$orig_coord_info_href->{$scaffold}};
+    foreach my $scaffold (sort keys %$orig_coord_info_href) {
+        my @coordinates = sort {$a<=>$b} keys %{$orig_coord_info_href->{$scaffold}};
         
         my @coord_structs;
         foreach my $coordinate (@coordinates) {
@@ -758,8 +758,8 @@ sub get_trans_coordsets_single_gene {
     my ($trans_coords_href) = @_;
 
     my @all_coord_pairs;
-    
-    foreach my $trans_id (keys %$trans_coords_href) {
+
+    foreach my $trans_id (sort keys %$trans_coords_href) {
         
         my @coords_pair_hrefs = values %$trans_coords_href;
         foreach my $coordpair_href (@coords_pair_hrefs) {
