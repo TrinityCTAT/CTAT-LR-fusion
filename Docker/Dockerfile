@@ -147,8 +147,8 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.
 WORKDIR $SRC
 
 
-ENV ctat_LR_fusion_version 1.2.1
-ENV CTAT_LR_FUSION_CO 215e35ce6dbdc24ed0acada6da4780171d02ecbb
+ENV ctat_LR_fusion_version 1.3.0
+ENV CTAT_LR_FUSION_CO 2d7e9e4a2e8d6827ea983a1251545ac0f64f59ce
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \

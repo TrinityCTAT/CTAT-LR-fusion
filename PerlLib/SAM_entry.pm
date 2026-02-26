@@ -204,19 +204,18 @@ sub get_alignment_coords {
     my $sum_hardmasked_query = 0;
 
 	$genome_lend--; # move pointer just before first position.
-	
-	while ($alignment =~ /(\d+)([A-Z])/g) {
+	 
+	while ($alignment =~ /(\d+)([A-Z=])/g) {
 		my $len = $1;
 		my $code = $2;
-		
-		unless ($code =~ /^[MSDNIH]$/) {
+		 
+		unless ($code =~ /^[MSDNIH=X]$/) {
 			confess "Error, cannot parse cigar code [$code] " . $self->toString();
 		}
 		
 		# print "parsed $len,$code\n";
 		
-		if ($code eq 'M') { # aligned bases match or mismatch
-			
+		if  ($code =~ /^[M=X]$/){ # aligned bases match or mismatch			
 			my $genome_rend = $genome_lend + $len;
 			my $query_rend = $query_lend + $len;
 			
