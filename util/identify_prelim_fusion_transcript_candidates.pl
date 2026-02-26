@@ -106,8 +106,12 @@ unless (-s $chims_described) {
 main: {
     
     my @fusion_candidates = &parse_chims($chims_described);
-    
-    @fusion_candidates = reverse sort {$a->{num_reads} <=> $b->{num_reads}} @fusion_candidates;
+
+    @fusion_candidates = reverse sort {
+        $a->{num_reads} <=> $b->{num_reads}
+        ||
+        $b->{fusion_name} cmp $a->{fusion_name}  # stable tie-breaker for deterministic ordering (reversed for A-Z output)
+    } @fusion_candidates;
 
     my $num_fusion_candidates = scalar(@fusion_candidates);
     print STDERR "Pre-FFPM-filtering of prelim phase-1 candidates: $num_fusion_candidates fusion pairs\n";

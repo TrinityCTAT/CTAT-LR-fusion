@@ -117,10 +117,12 @@ main: {
 
     if ($long_reads_only_flag) {
         # aggregate long reads info.
-        
+
         my @agg_rows;
         foreach my $fusion_token (keys %fusion_token_to_rows) {
             my @rows = @{$fusion_token_to_rows{$fusion_token}};
+            # Sort rows to ensure deterministic representative selection
+            @rows = sort { $a->{trans_acc} cmp $b->{trans_acc} } @rows;
             my $repr_row = shift @rows;
             for my $row (@rows) {
                 $repr_row->{JunctionReadCount} += $row->{JunctionReadCount};
@@ -128,8 +130,12 @@ main: {
             }
             push (@agg_rows, $repr_row);
         }
-            
-        @agg_rows = reverse sort {$a->{JunctionReadCount}<=>$b->{JunctionReadCount}} @agg_rows;
+
+        @agg_rows = reverse sort {
+            $a->{JunctionReadCount} <=> $b->{JunctionReadCount}
+            ||
+            $b->{'#FusionName'} cmp $a->{'#FusionName'}  # stable tie-breaker for deterministic ordering (reversed for A-Z output)
+        } @agg_rows;
         
         foreach my $row (@agg_rows) {
             $tab_writer->write_row($row);

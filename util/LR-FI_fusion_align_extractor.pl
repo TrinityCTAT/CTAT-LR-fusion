@@ -492,14 +492,18 @@ sub report_LR_fusions {
 
 
     @fusion_structs = &merge_identical_breakpoints(@fusion_structs);
-    
 
-    @fusion_structs = reverse sort {$a->{num_LR} <=> $b->{num_LR}} @fusion_structs;
 
-    
-    
+    @fusion_structs = reverse sort {
+        $a->{num_LR} <=> $b->{num_LR}
+        ||
+        $b->{fusion_name} cmp $a->{fusion_name}  # stable tie-breaker for deterministic ordering (reversed for A-Z output)
+    } @fusion_structs;
 
-    
+
+
+
+
     print $LR_breakpoint_summary_ofh join("\t", "#FusionName", "num_LR", 
                                           "LeftGene",
                                           "LeftLocalBreakpoint", 

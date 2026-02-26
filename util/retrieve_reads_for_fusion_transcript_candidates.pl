@@ -91,8 +91,12 @@ main: {
     my %fusion_targets = &parse_fusion_targets($fusions_input_file);
     
     my @fusion_candidates = &parse_chims($chims_described_file, \%fusion_targets);
-    
-    @fusion_candidates = reverse sort {$a->{num_reads} <=> $b->{num_reads}} @fusion_candidates;
+
+    @fusion_candidates = reverse sort {
+        $a->{num_reads} <=> $b->{num_reads}
+        ||
+        $b->{fusion_name} cmp $a->{fusion_name}  # stable tie-breaker for deterministic ordering (reversed for A-Z output)
+    } @fusion_candidates;
 
     # prep reads info
     my $num_fusion_candidates = scalar(@fusion_candidates);
