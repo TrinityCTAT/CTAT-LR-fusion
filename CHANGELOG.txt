@@ -1,3 +1,8 @@
+
+# CTAT-LR-Fusion v1.4.0 Feb 27, 2026
+- updates to yield more deterministic behavior around tie-breaking and output ordering.
+
+
 # CTAT-LR-fusion v1.3.0 Feb 3, 2026
 - more rigorous filtering of foldback-type alignments
 - added --max_rigor to force using all reads and whole genome decoy in 2nd phase
