@@ -1,5 +1,5 @@
 FROM ubuntu:20.04
-MAINTAINER bhaas@broadinstitute.org
+LABEL maintainer="bhaas@broadinstitute.org"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -69,10 +69,10 @@ RUN curl -L https://cpanmin.us | perl - App::cpanminus
 
 ## set up tool config and deployment area:
 
-ENV SRC /usr/local/src
-ENV BIN /usr/local/bin
+ENV SRC=/usr/local/src
+ENV BIN=/usr/local/bin
 
-ENV DATA /usr/local/data
+ENV DATA=/usr/local/data
 RUN mkdir $DATA
 
 
@@ -94,7 +94,7 @@ RUN cpanm install JSON::XS.pm
 
 ## Bowtie2
 WORKDIR $SRC
-ENV BOWTIE2_VERSION 2.4.4
+ENV BOWTIE2_VERSION=2.4.4
 RUN wget https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VERSION}/bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip/download -O bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip && \
     unzip bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip && \
     mv bowtie2-${BOWTIE2_VERSION}-linux-x86_64/bowtie2* $BIN && \
@@ -147,8 +147,8 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.
 WORKDIR $SRC
 
 
-ENV ctat_LR_fusion_version 1.3.0
-ENV CTAT_LR_FUSION_CO 2d7e9e4a2e8d6827ea983a1251545ac0f64f59ce
+ENV ctat_LR_fusion_version=1.4.0
+ENV CTAT_LR_FUSION_CO=b7be0eddce8136c6cccb9562958985bda201f408
 
 RUN git clone --recursive https://github.com/TrinityCTAT/CTAT-LR-fusion.git  && \
 	cd CTAT-LR-fusion && \
