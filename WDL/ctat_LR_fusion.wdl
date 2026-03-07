@@ -118,7 +118,7 @@ task CTAT_LR_FUSION_TASK {
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
-                ~{no_ctat_mm2} \
+                ~{no_ctat_mm2_flag} \
                 ~{"--FI_extra_params " + FI_extra_params }
 
 
