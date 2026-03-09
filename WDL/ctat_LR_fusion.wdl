@@ -53,7 +53,14 @@ workflow ctat_LR_fusion_wf {
           memory=memory,
           preemptible=preemptible,
           maxRetries=maxRetries,
-          disk_space_multiplier=disk_space_multiplier    
+          disk_space_multiplier=disk_space_multiplier
+     }
+
+     output {
+         File fusion_report = CTAT_LR_FUSION_TASK.fusion_report
+         File fusion_report_abridged = CTAT_LR_FUSION_TASK.fusion_report_abridged
+         File fusion_report_html = CTAT_LR_FUSION_TASK.fusion_report_html
+         File igv_tar = CTAT_LR_FUSION_TASK.igv_tar
      }
 }
 
