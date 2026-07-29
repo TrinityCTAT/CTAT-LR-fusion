@@ -479,7 +479,7 @@ main: {
         
             my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2 --only_chimeric";
            
-            my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
+            my $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only --junc-bed $MM2_splice_file -ax splice -G $max_intron_length -u b -t $CPU $MM2_idx $transcripts_file | samtools view -Sb -o $mm2_chim_align_prelim_bam\" ";
             $pipeliner->add_commands(new Command($cmd, "run_mm2.ok"));
         }
     }
@@ -665,7 +665,7 @@ main: {
     my $LR_FI_mm2_bam = "$intermediates_dir/LR-FI.mm2.bam";
     ## run mm2 using the chimeric candidates:
     my $mm2_prog = ($NO_CTAT_MM2) ? "minimap2" : "$CTAT_MINIMAP2_DIR/ctat-minimap2";
-    $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only  -ax splice -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $LR_FI_mm2_bam\" ";
+    $cmd = "bash -c \"set -eou pipefail && $mm2_prog --sam-hit-only  -ax splice -G $max_intron_length -u b --junc-bed $FI_splice_bed -t $CPU $FI_mm2 $chim_candidates_fasta | samtools view -Sb -o $LR_FI_mm2_bam\" ";
     
     $pipeliner->add_commands(new Command($cmd, "LR-FI.mm2.ok"));
 

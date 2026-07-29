@@ -17,6 +17,7 @@ workflow ctat_LR_fusion_wf {
        Int? min_sumJS
        Int? min_novel_junction_support
        Int? num_total_reads
+       Int? max_intron_length
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
@@ -44,6 +45,7 @@ workflow ctat_LR_fusion_wf {
           min_sumJS=min_sumJS,
           min_novel_junction_support=min_novel_junction_support,
           num_total_reads=num_total_reads,
+          max_intron_length=max_intron_length,
           illumina_left_fq=illumina_left_fq,
 	      illumina_right_fq=illumina_right_fq,
           FI_extra_params=FI_extra_params,
@@ -80,6 +82,7 @@ task CTAT_LR_FUSION_TASK {
        Int? min_sumJS
        Int? min_novel_junction_support
        Int? num_total_reads
+       Int? max_intron_length
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
@@ -121,6 +124,7 @@ task CTAT_LR_FUSION_TASK {
                 ~{"--min_FFPM " + min_FFPM } \
                 ~{"--min_per_id " + min_per_id } \
                 ~{"--num_total_reads " + num_total_reads } \
+                ~{"--max_intron_length " + max_intron_length } \
                 ~{"--CPU " + cpu } \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
