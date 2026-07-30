@@ -164,9 +164,11 @@ Pass if:
 - `--max_foldback_frac` (default: 0.5) - Maximum fraction of reads that can be fold-backs (set to 1.0 to disable)
 
 ### FFPM and Phase Control
-- `--min_FFPM` (default: 0.1) - Minimum fusion fragments per million
+- `--min_FFPM` (default: 0.1) - Minimum expression threshold. Phase-2 long-read support is summed across qualifying breakpoint isoforms for each ordered `#FusionName`; short-read FFPM remains breakpoint-specific.
 - `--frac_FFPM_phase1` (default: 0.6) - Fraction of min_FFPM for phase 1 (soft threshold)
 - `--max_phase1_candidates` (default: 10,000) - Max candidates entering phase 2
+
+The phase-2 long-read pair total includes only breakpoint isoforms that meet the splice/read-support requirements and the configured dominant-isoform fraction. Output remains one row per qualifying breakpoint isoform.
 
 ### Breakpoint Precision
 - `--max_exon_delta` (default: 50) - Max distance from exon boundary for initial search

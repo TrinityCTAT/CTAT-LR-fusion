@@ -5,6 +5,7 @@ import logging
 import argparse
 import pandas as pd
 import csv
+from decimal import Decimal, ROUND_CEILING
 
 
 logging.basicConfig(level=logging.INFO,
@@ -26,8 +27,12 @@ def main():
     parser.add_argument("--min_sumJS", type=int, default=1, help="min number of Illumina reads supporting junction and spanning frags summed")
     parser.add_argument("--min_novel_junction_support", type=int, default=3, help="min number of junction reads with non-canonical splice support")
     parser.add_argument("--min_FFPM", type=float, default=0.1, help="min FFPM value for long or short reads.  If short reads >= min_FFPM and long reads < min_FFPM, still reported")
+    parser.add_argument("--num_LR_total", type=int, required=True, help="total number of long reads used to compute fusion-pair FFPM")
+    parser.add_argument("--min_frac_dom_iso", type=float, default=0.05, help="minimum fraction of the dominant long-read isoform count included in fusion-pair FFPM")
 
     args = parser.parse_args()
+    if args.num_LR_total <= 0:
+        parser.error("--num_LR_total must be a positive integer")
 
     fusions_input_filename = args.fusions_input
     fusions_output_filename = args.filtered_fusions_output
@@ -38,51 +43,64 @@ def main():
     min_sumJS = args.min_sumJS
     min_novel_junction_support = args.min_novel_junction_support
     min_FFPM = args.min_FFPM
+    num_LR_total = args.num_LR_total
+    min_frac_dom_iso = args.min_frac_dom_iso
 
     data = pd.read_csv(fusions_input_filename, sep="\t", quotechar='"')
 
+    LR_ok = (
+        (
+            (data.SpliceType == "ONLY_REF_SPLICE")
+            & (data.num_LR >= min_num_LR)
+        )
+        | (data.num_LR >= min_LR_novel_junction_support)
+    ).fillna(False)
+
+    LR_supported_counts = data.num_LR.where(LR_ok)
+    max_pair_LR = LR_supported_counts.groupby(
+        data["#FusionName"], sort=False, dropna=False
+    ).transform("max")
+    if min_frac_dom_iso == 0:
+        LR_contributor = LR_ok
+    else:
+        LR_contributor = (
+            LR_ok & (data.num_LR >= min_frac_dom_iso * max_pair_LR)
+        ).fillna(False)
+
+    pair_LR_count = (
+        data.num_LR.where(LR_contributor, 0)
+        .groupby(data["#FusionName"], sort=False, dropna=False)
+        .transform("sum")
+    )
+    min_pair_LR_reads = int(
+        (
+            Decimal(str(min_FFPM))
+            * Decimal(num_LR_total)
+            / Decimal("1000000")
+        ).to_integral_value(rounding=ROUND_CEILING)
+    )
+    pair_LR_abundant = (pair_LR_count >= min_pair_LR_reads).fillna(False)
 
     if 'JunctionReadCount' in data.columns:
-        # filter based on long or short read results:
-        data_filtered = data[
-            (    # long read criteria
-
+        row_SR_abundant = (data.FFPM >= min_FFPM).fillna(False)
+        SR_ok = (
+            (
                 (
-                    ( (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
-                    |
-                    (data.num_LR >= min_LR_novel_junction_support)
-                ) & (
-                    (data.LR_FFPM >= min_FFPM) | (data.FFPM >= min_FFPM)  # continue to report long read if the short read FFPM meets threshold.
-                    )
-            )
-                |
-            (    # short read criteria
-              
-                (
-                    ( (data.JunctionReadCount >= min_J) & (data.SpliceType == "ONLY_REF_SPLICE"))
-                            |
-                            (data.JunctionReadCount >= min_novel_junction_support)
+                    (data.JunctionReadCount >= min_J)
+                    & (data.SpliceType == "ONLY_REF_SPLICE")
                 )
-                    &
-                (data.JunctionReadCount + data.SpanningFragCount >= min_sumJS)
-                    &
-                (data.FFPM >= min_FFPM)
+                | (data.JunctionReadCount >= min_novel_junction_support)
             )
-            ]                     
-
+            & (data.JunctionReadCount + data.SpanningFragCount >= min_sumJS)
+        ).fillna(False)
+        keep = (
+            (LR_ok & (pair_LR_abundant | row_SR_abundant))
+            | (SR_ok & row_SR_abundant)
+        )
     else:
-        # filter just based on long reads
-        data_filtered = data[
-            
-              (
-                (  (data.SpliceType == "ONLY_REF_SPLICE") & (data.num_LR >= min_num_LR) )
-                  |
-                (data.num_LR >= min_LR_novel_junction_support)
-              ) & (
-                 data.LR_FFPM >= min_FFPM
-                  )
-            
-            ]
+        keep = LR_ok & pair_LR_abundant
+
+    data_filtered = data[keep]
     
     
 

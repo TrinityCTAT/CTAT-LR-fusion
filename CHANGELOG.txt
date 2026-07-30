@@ -1,4 +1,12 @@
 
+# CTAT-LR-Fusion v1.5.0 July 30, 2026
+- adds num_total_reads as a WDL input for overriding the long-read FFPM denominator
+- exposes the final full and abridged prediction reports, FusionInspector HTML report, and IGV archive as top-level WDL outputs
+- applies the phase-2 long-read FFPM threshold to summed qualifying breakpoint isoforms for each ordered fusion gene pair; short-read FFPM filtering remains breakpoint-specific
+- bugfix - now honors --max_intron_length in both the initial genome alignment and phase-2 fusion-contig realignment; the WDL now exposes this option
+- bugfix - fixes WDL handling of the no_ctat_mm2 task option
+
+
 # CTAT-LR-Fusion v1.4.0 Feb 27, 2026
 - updates to yield more deterministic behavior around tie-breaking and output ordering.
 

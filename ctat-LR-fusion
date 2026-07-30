@@ -11,7 +11,7 @@ use Pipeliner;
 use Process_cmd;
 use File::Basename;
 
-my $VERSION = "v1.4.0";
+my $VERSION = "v1.5.0";
 
 
 my $CPU = 4;
@@ -112,7 +112,8 @@ my $usage = <<__EOUSAGE__;
 #
 #  --min_per_id <int>              :minimum percent identity (default: $MIN_PER_ID) minimap2 alignments < --min_per_id are discarded.
 #
-#  --min_FFPM <float>              :min fusion expression (default: $MIN_FFPM FFPM - meaning at least 1 fusion read per 10 M total reads )
+#  --min_FFPM <float>              :minimum fusion expression (default: $MIN_FFPM FFPM). Long-read support is summed across
+#                                    qualifying breakpoint isoforms of each ordered fusion gene pair; short-read FFPM remains breakpoint-specific.
 #
 #  --output|o <string>             :output directory name (default: $output_directory)
 #
@@ -122,9 +123,9 @@ my $usage = <<__EOUSAGE__;
 #   ###############################################################################################################################################  
 #   # Fusions are reported if the meet the following requirements:
 #   #
-#   # Long reads:  (min_num_LR & canonical splice) or (min_LR_novel_junction_support & non canonical splicing))
+#   # Long reads: fusion-pair LR FFPM & ((min_num_LR & canonical splice) or (min_LR_novel_junction_support & noncanonical splicing))
 #   #    (or)
-#   # Short reads: (min_J & min_sumJS & canonical splice & min_FFPM) or (min_novel_junction_support & min_sumJS & non canonocial splicing & min_FFPM) 
+#   # Short reads: breakpoint FFPM & ((min_J & min_sumJS & canonical splice) or (min_novel_junction_support & min_sumJS & noncanonical splicing))
 #   #################################################################################################################################################
 #
 #  Long read filtering:
@@ -786,6 +787,8 @@ main: {
         $cmd = "$UTILDIR/filter_LR_fusions_by_evidence_abundance.py "
             . " --min_num_LR $MIN_NUM_LR "
             . " --min_FFPM $MIN_FFPM "
+            . " --num_LR_total $num_total_reads "
+            . " --min_frac_dom_iso $MIN_FRACTION_DOMINANT_ISO "
             . " --min_LR_novel_junction_support $MIN_LR_NOVEL "
             . " --min_J $MIN_J "
             . " --min_sumJS $MIN_SUM_JS "
