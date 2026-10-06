@@ -5,7 +5,7 @@ both:  test_incl_shortreads test_excl_shortreads
 
 basic_long_read_tests: test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2
 
-all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input test_oncoreads test_oncoreads_chim_candidates_only test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2 test_longOnly_fa_max_rigor test_longOnly_fa_incl_targets test_longOnly_fa_only_targets
+all_long_read_tests: test_excl_shortreads test_excl_shortreads_set_num_total_reads  test_excl_shortreads_bam_input test_oncoreads test_oncoreads_chim_candidates_only test_longOnly_fa test_longOnly_fq test_longOnly_fqgz test_longOnly_fagz test_longOnly_fa_nophase2 test_longOnly_fa_max_rigor test_longOnly_fa_incl_targets test_longOnly_fa_only_targets test_single_cell
 
 
 all: all_long_read_tests test_incl_shortreads  test_longOnly_fqgz test_longOnly_fq test_incl_coding_effect
@@ -53,6 +53,28 @@ test_excl_shortreads_set_num_total_reads:
 	../ctat-LR-fusion -T transcripts.fa --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.excl_short.setNumReads --vis --extract_fusion_LR_fasta fusion_ev_LR.reads.fa --min_trans_overlap_length 75 --num_total_reads 500000
 
 ###########################################################
+#################### Single cell ##########################
+# synthetic single-cell inputs: the bulk test reads with fake CB:Z: and UB:Z: tags added,
+# which ctat-LR-fusion should detect and encode into the read names as CB^UMI^readname
+
+test_single_cell: test_sc_fq test_sc_LR_bam
+
+transcripts.sc.fq.gz: transcripts.fq.gz
+	./sc_test_data.py make_fastq transcripts.fq.gz transcripts.sc.fq.gz
+
+transcripts.sc.mm2.bam: transcripts.mm2.bam
+	./sc_test_data.py make_bam transcripts.mm2.bam transcripts.sc.mm2.bam
+
+test_sc_fq: transcripts.sc.fq.gz
+	../ctat-LR-fusion -T transcripts.sc.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.sc_fq --min_novel_junction_support 1 --min_trans_overlap_length 75
+	./sc_test_data.py check ctat_LR_fusion_outdir.sc_fq/ctat-LR-fusion.fusion_predictions.tsv
+
+test_sc_LR_bam: transcripts.sc.mm2.bam
+	../ctat-LR-fusion --LR_bam transcripts.sc.mm2.bam --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.sc_LR_bam --min_trans_overlap_length 75
+	./sc_test_data.py check ctat_LR_fusion_outdir.sc_LR_bam/ctat-LR-fusion.fusion_predictions.tsv
+
+
+###########################################################
 #################### With short reads too #################
 
 test_incl_shortreads:
@@ -94,6 +116,7 @@ test_singularity:
 
 clean:
 	rm -rf ctat_LR_fusion_outdir.* 
+	rm -f transcripts.sc.fq.gz transcripts.sc.mm2.bam
 	sudo rm -rf ./ctat_LR_fusion_outdir.*.docker
 
 

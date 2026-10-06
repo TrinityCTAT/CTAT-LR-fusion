@@ -196,6 +196,11 @@ my $usage = <<__EOUSAGE__;
 #
 #  --no_ctat_mm2                      : do not use ctat-minimap2, instead use regular minimap2
 #
+#  --no_sc_read_rename                : by default, if the --transcripts reads carry single-cell CB:Z: and UB:Z: tags in the header
+#                                       (eg. from 'samtools fastq -T CB,UB'), or the --LR_bam records carry CB and UB tags,
+#                                       the reads are renamed as CB^UMI^readname so the cell barcode and umi are retained
+#                                       in the fusion read accessions. This disables that.
+#
 #  --FI_extra_params <string>         : extra parameters to give to FusionInspector (eg. "--STAR_xtra_params '--limitBAMsortRAM 61419850732' "
 #
 #
@@ -219,6 +224,8 @@ my $extract_fusion_LR_fasta = "";
 my $LR_bam = "";
 
 my $NO_CTAT_MM2 = 0;
+my $NO_SC_READ_RENAME = 0;
+my $LR_BAM_IS_SC = 0;
 
 my $num_total_reads;
 
@@ -282,6 +289,7 @@ my $num_total_reads;
               'min_trans_overlap_length=i' => \$min_trans_overlap_length,
               
               'no_ctat_mm2' => \$NO_CTAT_MM2,
+              'no_sc_read_rename' => \$NO_SC_READ_RENAME,
 
               'num_total_reads=i' => \$num_total_reads,
 
@@ -430,17 +438,42 @@ main: {
     if ($LR_bam) {
         $transcripts_file = basename($LR_bam);
         $transcripts_file =~ s/\.bam$//;
+
+        # encode the cell barcode and umi into the read names so they are retained in the fusion read accessions.
+        my $sc_read_rename = "";
+        if ( (! $NO_SC_READ_RENAME) && &bam_has_sc_tags($LR_bam) ) {
+            $LR_BAM_IS_SC = 1;
+            $transcripts_file = "$transcripts_file.cb_umi_named";
+            $sc_read_rename = " -T CB,UB | $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads - ";
+            print STDERR "-detected single-cell CB/UB tags in $LR_bam, reads will be named as CB^UMI^readname\n";
+        }
+        
         $transcripts_file = "$transcripts_file.fasta.gz";
 
         if ($MAX_RIGOR_FLAG) {
             # using all the reads
-            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam | gzip -c > $transcripts_file \" ";
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU $LR_bam $sc_read_rename | gzip -c > $transcripts_file \" ";
             $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.max_rigor.ok"));
             
         } else {
-            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam | gzip -c > $transcripts_file \" ";
+            my $cmd = "bash -c \"set -eou pipefail &&  samtools fasta -@ $CPU -d SA $LR_bam $sc_read_rename | gzip -c > $transcripts_file \" ";
             $pipeliner->add_commands(new Command($cmd, "extract_fasta_from_bam.ok"));
         }    
+    }
+    elsif ( (! $NO_SC_READ_RENAME) && &reads_have_sc_header_tags($transcripts_file) ) {
+        # encode the cell barcode and umi into the read names so they are retained in the fusion read accessions.
+        my $sc_reads_file = basename($transcripts_file);
+        $sc_reads_file =~ s/\.gz$//;
+        my $reads_type = ($sc_reads_file =~ /\.(fastq|fq)$/i) ? "fastq" : "fasta";
+        $sc_reads_file =~ s/\.(fastq|fq|fasta|fa)$//i;
+        $sc_reads_file = "$sc_reads_file.cb_umi_named.$reads_type.gz";
+
+        print STDERR "-detected single-cell CB/UB tags in read headers of $transcripts_file, writing reads named as CB^UMI^readname to $sc_reads_file\n";
+        
+        my $cmd = "bash -c \"set -eou pipefail && $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads $transcripts_file | gzip -c > $sc_reads_file\" ";
+        $pipeliner->add_commands(new Command($cmd, "encode_cb_umi_in_read_names.ok"));
+
+        $transcripts_file = "$output_directory/$sc_reads_file";
     }
     
     $transcripts_file = abs_path($transcripts_file);
@@ -493,6 +526,10 @@ main: {
     unless ($only_fusion_targets_file) {
     
         my $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -o $mm2_chim_align_bam\" ";
+        if ($LR_BAM_IS_SC) {
+            # read names must match the CB^UMI^readname encoded reads extracted from the bam
+            $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -O SAM | $UTILDIR/sc/encode_cb_umi_in_sam_read_names.py | samtools view -@ $CPU -b -o $mm2_chim_align_bam\" ";
+        }
         $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
         
         # convert to gff3 alignment format
@@ -871,6 +908,99 @@ main: {
     
 }
 
+
+
+####
+sub reads_have_sc_header_tags {
+    my ($reads_file) = @_;
+
+    ## examines the leading read headers for single-cell CB:Z: and UB:Z: tags in the header comment
+    ## (and read names not already encoded as CB^UMI^readname)
+    ## requiring at least 90% of them to have both tags.
+    
+    unless ($reads_file =~ /\.(fastq|fq|fasta|fa)(\.gz)?$/i) {
+        return(0);
+    }
+    my $is_fastq = ($reads_file =~ /\.(fastq|fq)(\.gz)?$/i);
+    
+    my $num_records_examine = 1000;
+    
+    my $fh;
+    if ($reads_file =~ /\.gz$/) {
+        open($fh, "gunzip -c $reads_file | ") or die "Error, cannot read $reads_file via gunzip";
+    }
+    else {
+        open($fh, $reads_file) or die "Error, cannot open file: $reads_file";
+    }
+    
+    my $num_records = 0;
+    my $num_sc_records = 0;
+    my $line_counter = 0;
+    while (my $line = <$fh>) {
+        $line_counter++;
+        if ($is_fastq) {
+            next unless ($line_counter % 4 == 1);
+        }
+        else {
+            next unless ($line =~ /^>/);
+        }
+        
+        chomp $line;
+        $num_records++;
+        
+        my ($read_name, @comment_fields) = split(/\s+/, substr($line, 1));
+        
+        unless ($read_name =~ /\^/) {
+            my $has_CB = grep { /^CB:Z:/ } @comment_fields;
+            my $has_UB = grep { /^UB:Z:/ } @comment_fields;
+            if ($has_CB && $has_UB) {
+                $num_sc_records++;
+            }
+        }
+        
+        last if ($num_records >= $num_records_examine);
+    }
+    close $fh; # ignoring status since gunzip gets a sigpipe on early close
+    
+    print STDERR "-$num_sc_records of first $num_records reads in $reads_file have CB and UB header tags\n";
+    
+    return($num_records > 0 && $num_sc_records / $num_records >= 0.9);
+}
+
+
+####
+sub bam_has_sc_tags {
+    my ($bam_file) = @_;
+
+    ## examines the leading primary alignment records for CB and UB tags (and read names not already encoded as CB^UMI^readname)
+    ## requiring at least 90% of them to have both tags.
+    
+    my $num_records_examine = 1000;
+    
+    open(my $fh, "samtools view -F 0x900 $bam_file | head -n $num_records_examine | ") or die "Error, cannot read $bam_file via samtools";
+    my $num_records = 0;
+    my $num_sc_records = 0;
+    while (my $line = <$fh>) {
+        chomp $line;
+        my @fields = split(/\t/, $line);
+        $num_records++;
+        if ($fields[0] =~ /\^/) {
+            # already encoded in the read name
+            next;
+        }
+        my @tags = @fields[11..$#fields];
+        my $has_CB = grep { /^CB:Z:/ } @tags;
+        my $has_UB = grep { /^UB:Z:/ } @tags;
+        if ($has_CB && $has_UB) {
+            $num_sc_records++;
+        }
+    }
+    close $fh; # ignoring status since samtools gets a sigpipe on early close
+
+    print STDERR "-$num_sc_records of first $num_records primary records in $bam_file have CB and UB tags\n";
+
+    return($num_records > 0 && $num_sc_records / $num_records >= 0.9);
+}
 
 
 ####
