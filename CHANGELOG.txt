@@ -1,4 +1,8 @@
 
+# CTAT-LR-Fusion v1.5.1 October 6, 2026
+- single-cell support: when --transcripts reads carry CB:Z: and UB:Z: header tags (eg. from 'samtools fastq -T CB,UB'), or --LR_bam records carry CB and UB tags, reads are renamed as CB^UMI^readname so the cell barcode and umi are retained in the fusion LR_accessions (see util/sc/cell_to_fusion_mappings.Rscript). Disable with --no_sc_read_rename
+- adds test_single_cell testing target using synthetic single-cell inputs
+
 # CTAT-LR-Fusion v1.5.0 July 30, 2026
 - adds num_total_reads as a WDL input for overriding the long-read FFPM denominator
 - exposes the final full and abridged prediction reports, FusionInspector HTML report, and IGV archive as top-level WDL outputs
