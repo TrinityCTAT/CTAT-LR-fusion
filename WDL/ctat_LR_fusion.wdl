@@ -61,6 +61,8 @@ workflow ctat_LR_fusion_wf {
      output {
          File fusion_report = CTAT_LR_FUSION_TASK.fusion_report
          File fusion_report_abridged = CTAT_LR_FUSION_TASK.fusion_report_abridged
+         File prelim_fusion_report = CTAT_LR_FUSION_TASK.prelim_fusion_report
+         File prelim_fusion_report_abridged = CTAT_LR_FUSION_TASK.prelim_fusion_report_abridged
          File fusion_report_html = CTAT_LR_FUSION_TASK.fusion_report_html
          File igv_tar = CTAT_LR_FUSION_TASK.igv_tar
      }
@@ -139,6 +141,11 @@ task CTAT_LR_FUSION_TASK {
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.abridged.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv 
 
+    gzip ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv \
+         ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv \
+         ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv \
+         ~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv
+
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
 
     mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa ~{sample_name}.ctat-LR-fusion.igv.genome.fa
@@ -158,11 +165,11 @@ task CTAT_LR_FUSION_TASK {
     >>>
     
     output {
-      File fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv"
-      File fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv"
+      File fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv.gz"
+      File fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv.gz"
 
-      File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv"
-      File prelim_fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv"
+      File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv.gz"
+      File prelim_fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv.gz"
 
       File fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
       File igv_tar="~{sample_name}.ctat-LR-fusion.igv.tar.gz"
