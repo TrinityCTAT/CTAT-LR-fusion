@@ -1,3 +1,7 @@
+# CTAT-LR-Fusion devel (unreleased)
+- adds util/sc/fusion_cell_umi_summary.py: for single-cell inputs, reports per-fusion read, umi, and cell counts, per (fusion, cell) counts, and per-read umi group assignments. UMIs are deduplicated within each cell and fusion, grouping UMIs within a Levenshtein edit distance (default 2) to absorb long-read umi errors and shifts.
+- bugfix - util/sc/cell_to_fusion_mappings.Rscript now deduplicates by cell and umi instead of retaining only one read per cell
+
 
 # CTAT-LR-Fusion v1.5.1 October 6, 2026
 - single-cell support: when --transcripts reads carry CB:Z: and UB:Z: header tags (eg. from 'samtools fastq -T CB,UB'), or --LR_bam records carry CB and UB tags, reads are renamed as CB^UMI^readname so the cell barcode and umi are retained in the fusion LR_accessions (see util/sc/cell_to_fusion_mappings.Rscript). Disable with --no_sc_read_rename

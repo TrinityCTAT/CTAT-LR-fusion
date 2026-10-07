@@ -68,6 +68,7 @@ transcripts.sc.mm2.bam: transcripts.mm2.bam
 test_sc_fq: transcripts.sc.fq.gz
 	../ctat-LR-fusion -T transcripts.sc.fq.gz --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.sc_fq --min_novel_junction_support 1 --min_trans_overlap_length 75
 	./sc_test_data.py check ctat_LR_fusion_outdir.sc_fq/ctat-LR-fusion.fusion_predictions.tsv
+	../util/sc/fusion_cell_umi_summary.py --fusions ctat_LR_fusion_outdir.sc_fq/ctat-LR-fusion.fusion_predictions.tsv --output_prefix ctat_LR_fusion_outdir.sc_fq/ctat-LR-fusion.sc
 
 test_sc_LR_bam: transcripts.sc.mm2.bam
 	../ctat-LR-fusion --LR_bam transcripts.sc.mm2.bam --genome_lib_dir ${CTAT_GENOME_LIB} -o ctat_LR_fusion_outdir.sc_LR_bam --min_trans_overlap_length 75

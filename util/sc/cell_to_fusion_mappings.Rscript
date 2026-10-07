@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+# Exact-match umi deduplication per fusion breakpoint and cell.
+# See fusion_cell_umi_summary.py for per-fusion cell/umi summaries with error-tolerant umi grouping.
+
 
 main = function () {
     
@@ -26,7 +29,7 @@ main = function () {
     message(nrow(data))
     message("excluding duplicate umis")
     
-    data = data %>% group_by(FusionName, LeftBreakpoint, RightGene, RightBreakpoint, SpliceType, cb) %>%
+    data = data %>% group_by(FusionName, LeftBreakpoint, RightBreakpoint, SpliceType, cb, umi) %>%
         filter(row_number() == 1) %>%
         ungroup()
 
