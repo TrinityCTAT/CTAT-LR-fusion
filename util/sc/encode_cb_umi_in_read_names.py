@@ -7,6 +7,7 @@
 #     @GTACAACAGGAGAGTA^AAGCGAAGAGAG^readname
 # matching the read naming used by 10x_ubam_to_fastq.py and sc-Kinnex_ubam_to_fastq.py
 # Records lacking a CB or UB tag get 'NA' in that position.
+# Other tags can be used for the cell barcode and umi via --cb_tag and --umi_tag.
 # Output is written to stdout.
 
 import sys, os, re
@@ -25,6 +26,8 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--reads", type=str, required=True, help="reads in fastq or fasta format (can be gzipped), or '-' for stdin")
+    parser.add_argument("--cb_tag", type=str, default="CB", help="header tag holding the cell barcode")
+    parser.add_argument("--umi_tag", type=str, default="UB", help="header tag holding the umi")
     args = parser.parse_args()
 
     reads_file = args.reads
@@ -57,7 +60,7 @@ def main():
     while line:
 
         header = line.rstrip("\n")
-        new_header, has_CB, has_UB = encode_header(header)
+        new_header, has_CB, has_UB = encode_header(header, args.cb_tag, args.umi_tag)
         num_records += 1
         if not has_CB:
             num_missing_CB += 1
@@ -92,19 +95,22 @@ def main():
     sys.exit(0)
 
 
-def encode_header(header):
+def encode_header(header, cb_tag="CB", umi_tag="UB"):
 
     prefix = header[0]
     fields = header[1:].split()
     read_name = fields[0]
 
+    cb_prefix = cb_tag + ":Z:"
+    umi_prefix = umi_tag + ":Z:"
+
     cell_barcode = "NA"
     umi = "NA"
     for field in fields[1:]:
-        if field.startswith("CB:Z:"):
-            cell_barcode = re.sub("-1$", "", field[5:])
-        elif field.startswith("UB:Z:"):
-            umi = field[5:]
+        if field.startswith(cb_prefix):
+            cell_barcode = re.sub("-1$", "", field[len(cb_prefix) :])
+        elif field.startswith(umi_prefix):
+            umi = field[len(umi_prefix) :]
 
     new_header = prefix + "^".join([cell_barcode, umi, read_name])
 

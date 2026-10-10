@@ -6,9 +6,11 @@
 # All records for a read get the same name: tags from the primary record are used
 # (as 'samtools fasta' extracts the primary record), falling back to any record of that read carrying them.
 # Missing values are set to 'NA'.
+# Other tags can be used for the cell barcode and umi via --cb_tag and --umi_tag.
 # Output SAM is written to stdout.
 
 import sys, os, re
+import argparse
 import logging
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -16,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+
+    parser = argparse.ArgumentParser(
+        description="encode CB and UB tags into the read names of SAM records (from stdin) as CB^UMI^readname",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--cb_tag", type=str, default="CB", help="SAM tag holding the cell barcode")
+    parser.add_argument("--umi_tag", type=str, default="UB", help="SAM tag holding the umi")
+    args = parser.parse_args()
 
     out = sys.stdout
 
@@ -33,7 +43,7 @@ def main():
 
         read_name = line.split("\t", 1)[0]
         if read_name != prev_read_name and read_group:
-            has_CB, has_UB = write_renamed_read_group(read_group, out)
+            has_CB, has_UB = write_renamed_read_group(read_group, out, args.cb_tag, args.umi_tag)
             num_reads += 1
             num_missing_CB += not has_CB
             num_missing_UB += not has_UB
@@ -43,7 +53,7 @@ def main():
         prev_read_name = read_name
 
     if read_group:
-        has_CB, has_UB = write_renamed_read_group(read_group, out)
+        has_CB, has_UB = write_renamed_read_group(read_group, out, args.cb_tag, args.umi_tag)
         num_reads += 1
         num_missing_CB += not has_CB
         num_missing_UB += not has_UB
@@ -88,10 +98,10 @@ def get_read_group_tag_val(read_group, tag):
     return None
 
 
-def write_renamed_read_group(read_group, out):
+def write_renamed_read_group(read_group, out, cb_tag="CB", umi_tag="UB"):
 
-    cell_barcode = get_read_group_tag_val(read_group, "CB")
-    umi = get_read_group_tag_val(read_group, "UB")
+    cell_barcode = get_read_group_tag_val(read_group, cb_tag)
+    umi = get_read_group_tag_val(read_group, umi_tag)
 
     has_CB = cell_barcode is not None
     has_UB = umi is not None

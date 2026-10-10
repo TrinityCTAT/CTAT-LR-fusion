@@ -88,7 +88,11 @@ my $MAX_RIGOR_FLAG = 0;
 my $incl_fusion_targets_file;
 my $only_fusion_targets_file;
 
-my $usage = <<__EOUSAGE__;
+# single-cell tags for the cell barcode and umi
+my $CB_TAG = "CB";
+my $UMI_TAG = "UB";
+
+my $usage =<<__EOUSAGE__;
 
 ############################################################################################################
 #
@@ -201,6 +205,10 @@ my $usage = <<__EOUSAGE__;
 #                                       the reads are renamed as CB^UMI^readname so the cell barcode and umi are retained
 #                                       in the fusion read accessions. This disables that.
 #
+#  --cb_tag <string>                  : SAM tag holding the cell barcode in the --transcripts read headers or --LR_bam records (default: $CB_TAG)
+#
+#  --umi_tag <string>                 : SAM tag holding the umi in the --transcripts read headers or --LR_bam records (default: $UMI_TAG)
+#
 #  --FI_extra_params <string>         : extra parameters to give to FusionInspector (eg. "--STAR_xtra_params '--limitBAMsortRAM 61419850732' "
 #
 #
@@ -290,6 +298,8 @@ my $num_total_reads;
               
               'no_ctat_mm2' => \$NO_CTAT_MM2,
               'no_sc_read_rename' => \$NO_SC_READ_RENAME,
+              'cb_tag=s' => \$CB_TAG,
+              'umi_tag=s' => \$UMI_TAG,
 
               'num_total_reads=i' => \$num_total_reads,
 
@@ -327,6 +337,16 @@ unless (($transcripts_file || $LR_bam) && $genome_lib_dir) {
 unless ($transcripts_file || $LR_bam) {
     die "Error: Either --transcripts or --LR_bam must be provided\n$usage";
 }
+
+foreach my $sc_tag ($CB_TAG, $UMI_TAG) {
+    unless ($sc_tag =~ /^[A-Za-z][A-Za-z0-9]$/) {
+        die "Error, --cb_tag and --umi_tag must be two-character SAM tag names (eg. CB, UB), not: '$sc_tag'";
+    }
+}
+if ($CB_TAG eq $UMI_TAG) {
+    die "Error, --cb_tag and --umi_tag cannot be the same tag: $CB_TAG";
+}
+my $sc_tag_opts = "--cb_tag $CB_TAG --umi_tag $UMI_TAG";
 
 
 if ($transcripts_file) {
@@ -444,8 +464,8 @@ main: {
         if ( (! $NO_SC_READ_RENAME) && &bam_has_sc_tags($LR_bam) ) {
             $LR_BAM_IS_SC = 1;
             $transcripts_file = "$transcripts_file.cb_umi_named";
-            $sc_read_rename = " -T CB,UB | $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads - ";
-            print STDERR "-detected single-cell CB/UB tags in $LR_bam, reads will be named as CB^UMI^readname\n";
+            $sc_read_rename = " -T $CB_TAG,$UMI_TAG | $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads - $sc_tag_opts ";
+            print STDERR "-detected single-cell $CB_TAG/$UMI_TAG tags in $LR_bam, reads will be named as CB^UMI^readname\n";
         }
         
         $transcripts_file = "$transcripts_file.fasta.gz";
@@ -468,9 +488,9 @@ main: {
         $sc_reads_file =~ s/\.(fastq|fq|fasta|fa)$//i;
         $sc_reads_file = "$sc_reads_file.cb_umi_named.$reads_type.gz";
 
-        print STDERR "-detected single-cell CB/UB tags in read headers of $transcripts_file, writing reads named as CB^UMI^readname to $sc_reads_file\n";
-        
-        my $cmd = "bash -c \"set -eou pipefail && $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads $transcripts_file | gzip -c > $sc_reads_file\" ";
+        print STDERR "-detected single-cell $CB_TAG/$UMI_TAG tags in read headers of $transcripts_file, writing reads named as CB^UMI^readname to $sc_reads_file\n";
+
+        my $cmd = "bash -c \"set -eou pipefail && $UTILDIR/sc/encode_cb_umi_in_read_names.py --reads $transcripts_file $sc_tag_opts | gzip -c > $sc_reads_file\" ";
         $pipeliner->add_commands(new Command($cmd, "encode_cb_umi_in_read_names.ok"));
 
         $transcripts_file = "$output_directory/$sc_reads_file";
@@ -528,7 +548,7 @@ main: {
         my $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -o $mm2_chim_align_bam\" ";
         if ($LR_BAM_IS_SC) {
             # read names must match the CB^UMI^readname encoded reads extracted from the bam
-            $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -O SAM | $UTILDIR/sc/encode_cb_umi_in_sam_read_names.py | samtools view -@ $CPU -b -o $mm2_chim_align_bam\" ";
+            $cmd = "bash -c \"set -eou pipefail && samtools view -@ $CPU -h -d SA $mm2_chim_align_prelim_bam | samtools sort -@ $CPU -N -O SAM | $UTILDIR/sc/encode_cb_umi_in_sam_read_names.py $sc_tag_opts | samtools view -@ $CPU -b -o $mm2_chim_align_bam\" ";
         }
         $pipeliner->add_commands(new Command($cmd, "extract_chim_align_from_bam.ok"));
         
@@ -914,7 +934,7 @@ main: {
 sub reads_have_sc_header_tags {
     my ($reads_file) = @_;
 
-    ## examines the leading read headers for single-cell CB:Z: and UB:Z: tags in the header comment
+    ## examines the leading read headers for single-cell cell barcode and umi tags (--cb_tag, --umi_tag) in the header comment
     ## (and read names not already encoded as CB^UMI^readname)
     ## requiring at least 90% of them to have both tags.
     
@@ -951,8 +971,8 @@ sub reads_have_sc_header_tags {
         my ($read_name, @comment_fields) = split(/\s+/, substr($line, 1));
         
         unless ($read_name =~ /\^/) {
-            my $has_CB = grep { /^CB:Z:/ } @comment_fields;
-            my $has_UB = grep { /^UB:Z:/ } @comment_fields;
+            my $has_CB = grep { /^$CB_TAG:Z:/ } @comment_fields;
+            my $has_UB = grep { /^$UMI_TAG:Z:/ } @comment_fields;
             if ($has_CB && $has_UB) {
                 $num_sc_records++;
             }
@@ -962,7 +982,7 @@ sub reads_have_sc_header_tags {
     }
     close $fh; # ignoring status since gunzip gets a sigpipe on early close
     
-    print STDERR "-$num_sc_records of first $num_records reads in $reads_file have CB and UB header tags\n";
+    print STDERR "-$num_sc_records of first $num_records reads in $reads_file have $CB_TAG and $UMI_TAG header tags\n";
     
     return($num_records > 0 && $num_sc_records / $num_records >= 0.9);
 }
@@ -972,7 +992,7 @@ sub reads_have_sc_header_tags {
 sub bam_has_sc_tags {
     my ($bam_file) = @_;
 
-    ## examines the leading primary alignment records for CB and UB tags (and read names not already encoded as CB^UMI^readname)
+    ## examines the leading primary alignment records for cell barcode and umi tags (--cb_tag, --umi_tag) (and read names not already encoded as CB^UMI^readname)
     ## requiring at least 90% of them to have both tags.
     
     my $num_records_examine = 1000;
@@ -989,15 +1009,15 @@ sub bam_has_sc_tags {
             next;
         }
         my @tags = @fields[11..$#fields];
-        my $has_CB = grep { /^CB:Z:/ } @tags;
-        my $has_UB = grep { /^UB:Z:/ } @tags;
+        my $has_CB = grep { /^$CB_TAG:Z:/ } @tags;
+        my $has_UB = grep { /^$UMI_TAG:Z:/ } @tags;
         if ($has_CB && $has_UB) {
             $num_sc_records++;
         }
     }
     close $fh; # ignoring status since samtools gets a sigpipe on early close
 
-    print STDERR "-$num_sc_records of first $num_records primary records in $bam_file have CB and UB tags\n";
+    print STDERR "-$num_sc_records of first $num_records primary records in $bam_file have $CB_TAG and $UMI_TAG tags\n";
 
     return($num_records > 0 && $num_sc_records / $num_records >= 0.9);
 }

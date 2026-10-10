@@ -21,6 +21,8 @@ workflow ctat_LR_fusion_wf {
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
+       String? cb_tag
+       String? umi_tag
 
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
@@ -49,6 +51,8 @@ workflow ctat_LR_fusion_wf {
           illumina_left_fq=illumina_left_fq,
 	      illumina_right_fq=illumina_right_fq,
           FI_extra_params=FI_extra_params,
+          cb_tag=cb_tag,
+          umi_tag=umi_tag,
          
           docker=docker,
           cpu=cpu,
@@ -88,6 +92,8 @@ task CTAT_LR_FUSION_TASK {
        File? illumina_left_fq
        File? illumina_right_fq
        String? FI_extra_params
+       String? cb_tag
+       String? umi_tag
        Boolean no_ctat_mm2 = false 
         
        String docker
@@ -127,6 +133,8 @@ task CTAT_LR_FUSION_TASK {
                 ~{"--min_per_id " + min_per_id } \
                 ~{"--num_total_reads " + num_total_reads } \
                 ~{"--max_intron_length " + max_intron_length } \
+                ~{"--cb_tag " + cb_tag } \
+                ~{"--umi_tag " + umi_tag } \
                 ~{"--CPU " + cpu } \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
