@@ -23,6 +23,8 @@ workflow ctat_LR_fusion_wf {
        String? FI_extra_params
        String? cb_tag
        String? umi_tag
+       Int? max_promiscuity
+       Int? min_pct_dom_promiscuity
 
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
@@ -53,6 +55,8 @@ workflow ctat_LR_fusion_wf {
           FI_extra_params=FI_extra_params,
           cb_tag=cb_tag,
           umi_tag=umi_tag,
+          max_promiscuity=max_promiscuity,
+          min_pct_dom_promiscuity=min_pct_dom_promiscuity,
          
           docker=docker,
           cpu=cpu,
@@ -94,6 +98,8 @@ task CTAT_LR_FUSION_TASK {
        String? FI_extra_params
        String? cb_tag
        String? umi_tag
+       Int? max_promiscuity
+       Int? min_pct_dom_promiscuity
        Boolean no_ctat_mm2 = false 
         
        String docker
@@ -135,6 +141,8 @@ task CTAT_LR_FUSION_TASK {
                 ~{"--max_intron_length " + max_intron_length } \
                 ~{"--cb_tag " + cb_tag } \
                 ~{"--umi_tag " + umi_tag } \
+                ~{"--max_promiscuity " + max_promiscuity } \
+                ~{"--min_pct_dom_promiscuity " + min_pct_dom_promiscuity } \
                 ~{"--CPU " + cpu } \
                 --vis \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \

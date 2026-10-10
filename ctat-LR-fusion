@@ -65,6 +65,10 @@ my $SNAP_dist = 3;
 
 my $MIN_FRACTION_DOMINANT_ISO = 0.05;
 
+# promiscuity filtering (FusionFilter/blast_and_promiscuity_filter.pl)
+my $MAX_PROMISCUITY = 10;
+my $MIN_PCT_DOM_PROMISCUITY = 20;
+
 my $CHIM_CANDIDATES_ONLY = 0; # force stop after phase 1
 
 my $MIN_FFPM = 0.1;
@@ -153,6 +157,14 @@ my $usage =<<__EOUSAGE__;
 #                                        (default: $MIN_NOVEL_J)
 #
 #  --min_frac_dom_iso_expr <float>     : minimum expression of dominant isoform (default: $MIN_FRACTION_DOMINANT_ISO)
+#
+# Promiscuity filters (genes fused to many different partners):
+#
+#  --max_promiscuity <int>             : maximum number of fusion partners allowed for a gene (default: $MAX_PROMISCUITY)
+#
+#  --min_pct_dom_promiscuity <int>     : for fusions involving a gene with more than --max_promiscuity partners, fusions with read support
+#                                        less than this percent of that gene's best-supported partner are filtered before the
+#                                        --max_promiscuity filter is applied. (default: $MIN_PCT_DOM_PROMISCUITY)
 #
 #  #############
 #  Misc options:
@@ -267,6 +279,9 @@ my $num_total_reads;
               'max_exon_delta=i' => \$MAX_EXON_DELTA,
 	      
               'min_frac_dom_iso_expr=f' => \$MIN_FRACTION_DOMINANT_ISO,
+
+              'max_promiscuity=i' => \$MAX_PROMISCUITY,
+              'min_pct_dom_promiscuity=i' => \$MIN_PCT_DOM_PROMISCUITY,
               
               'snap_dist=i' => \$SNAP_dist,
               
@@ -825,7 +840,8 @@ main: {
             
     ## Fusion filtering
             
-    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $fusions_filename --genome_lib_dir $genome_lib_dir";
+    $cmd = "$FindBin::Bin/FusionFilter/blast_and_promiscuity_filter.pl --fusion_preds $fusions_filename --out_prefix $fusions_filename --genome_lib_dir $genome_lib_dir"
+        . " --max_promiscuity $MAX_PROMISCUITY --min_pct_dom_promiscuity $MIN_PCT_DOM_PROMISCUITY";
     $pipeliner->add_commands(new Command($cmd, "blast_promisc_filter.ok"));
         
     
