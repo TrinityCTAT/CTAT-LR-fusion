@@ -111,6 +111,7 @@ my $usage =<<__EOUSAGE__;
 #  Optional:
 #
 #  --vis                           :include igv-report visualization html
+#                                   (the IGV input files are always bundled as ctat-LR-fusion.igv.tar.gz, with or without --vis)
 #
 #  --CPU <int>                     :number threads (default $CPU)
 #
@@ -190,7 +191,7 @@ my $usage =<<__EOUSAGE__;
 #  --prep_reference                : prepares mininmap2 genome index
 #  --prep_reference_only           : only prepares genome index and then stops.
 #
-#  --max_IGV_LR_per_fusion <int>   : for the --vis, select a max number of LR per fusion for the html. (default: $max_IGV_LR_per_fusion)
+#  --max_IGV_LR_per_fusion <int>   : select a max number of LR per fusion for the IGV files and --vis html. (default: $max_IGV_LR_per_fusion)
 #                                          (more reads means longer browser load times)
 #
 #  --examine_coding_effect         : explore impact of fusions on coding sequences (guesses only based on the fusion breakpoint and
@@ -930,10 +931,9 @@ main: {
 
 
     
-    if ($IGV_REPORTS) {
-        &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam);
-        $pipeliner->run();
-    }
+    # IGV files are always prepared and bundled into a tarball; the igv-reports html only with --vis
+    &include_IGV_REPORTS($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_filename, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam, $IGV_REPORTS);
+    $pipeliner->run();
     
     
     print STDERR "\n\n\tDone. See fusion predictions at: $output_directory/ctat-LR-fusion.fusion_predictions.tsv\n\n\n";
@@ -1071,7 +1071,7 @@ sub prep_minimap2_reference {
 
 ####
 sub include_IGV_REPORTS {
-    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_file, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam) = @_;
+    my ($pipeliner, $FI_contigs_file, $FI_annots_gtf, $fusions_file, $max_IGV_LR_per_fusion, $LR_FI_mm2_bam, $make_html) = @_;
     
     my $igv_prep_dir = "$intermediates_dir/IGV_prep";
     if (! -d $igv_prep_dir) {
@@ -1169,6 +1169,26 @@ sub include_IGV_REPORTS {
     
     
     $pipeliner->add_commands(new Command($cmd, "ctat-LR-fusion_report_json.ok") );
+    
+    ###############################
+    # bundle the IGV input files
+
+    my @igv_files = qw(igv.genome.fa igv.genome.fa.fai igv.annot.gtf igv.annot.bed
+                       igv.LR.sorted.bam igv.LR.sorted.bam.bai igv.pfam.bed igv.seqsimilar.bed igv.LR.breakoint.roi.bed);
+    if (-e $FI_junction_sam) {
+        push (@igv_files, "igv.illumina.junction_reads.sorted.bam", "igv.illumina.junction_reads.sorted.bam.bai");
+    }
+    if (-e $FI_spanning_sam) {
+        push (@igv_files, "igv.illumina.spanning_frags.sorted.bam", "igv.illumina.spanning_frags.sorted.bam.bai");
+    }
+    
+    $cmd = "tar -zchf $output_directory/ctat-LR-fusion.igv.tar.gz -C $igv_prep_dir "
+        . " --transform 's,^igv\\.,ctat-LR-fusion.igv.,' @igv_files";
+    $pipeliner->add_commands(new Command($cmd, "igv_tar.ok"));
+    
+    unless ($make_html) {
+        return;
+    }
     
     ###############
     # make the html

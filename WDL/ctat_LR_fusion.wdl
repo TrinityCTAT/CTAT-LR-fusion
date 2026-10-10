@@ -25,6 +25,7 @@ workflow ctat_LR_fusion_wf {
        String? umi_tag
        Int? max_promiscuity
        Int? min_pct_dom_promiscuity
+       Boolean vis = false
 
        String docker="trinityctat/ctat_lr_fusion:latest"
        Int cpu = 10
@@ -57,6 +58,7 @@ workflow ctat_LR_fusion_wf {
           umi_tag=umi_tag,
           max_promiscuity=max_promiscuity,
           min_pct_dom_promiscuity=min_pct_dom_promiscuity,
+          vis=vis,
          
           docker=docker,
           cpu=cpu,
@@ -71,7 +73,7 @@ workflow ctat_LR_fusion_wf {
          File fusion_report_abridged = CTAT_LR_FUSION_TASK.fusion_report_abridged
          File prelim_fusion_report = CTAT_LR_FUSION_TASK.prelim_fusion_report
          File prelim_fusion_report_abridged = CTAT_LR_FUSION_TASK.prelim_fusion_report_abridged
-         File fusion_report_html = CTAT_LR_FUSION_TASK.fusion_report_html
+         File? fusion_report_html = CTAT_LR_FUSION_TASK.fusion_report_html
          File igv_tar = CTAT_LR_FUSION_TASK.igv_tar
      }
 }
@@ -100,6 +102,7 @@ task CTAT_LR_FUSION_TASK {
        String? umi_tag
        Int? max_promiscuity
        Int? min_pct_dom_promiscuity
+       Boolean vis = false
        Boolean no_ctat_mm2 = false 
         
        String docker
@@ -113,6 +116,7 @@ task CTAT_LR_FUSION_TASK {
   Int disk_space = ceil( (size(genome_lib_tar, "GB") + 10*size(transcripts, "GB") + 2*size(illumina_left_fq, "GB") + 10*size(LR_bam, "GB") ) * disk_space_multiplier)
 
   String no_ctat_mm2_flag = if (no_ctat_mm2) then "--no_ctat_mm2" else ""
+  String vis_flag = if (vis) then "--vis" else ""
   
   command <<<
 
@@ -144,7 +148,7 @@ task CTAT_LR_FUSION_TASK {
                 ~{"--max_promiscuity " + max_promiscuity } \
                 ~{"--min_pct_dom_promiscuity " + min_pct_dom_promiscuity } \
                 ~{"--CPU " + cpu } \
-                --vis \
+                ~{vis_flag} \
                 ~{"--left_fq " + illumina_left_fq} ~{"--right_fq " + illumina_right_fq } \
                 -o ctat_LR_fusion_outdir \
                 ~{no_ctat_mm2_flag} \
@@ -162,7 +166,9 @@ task CTAT_LR_FUSION_TASK {
          ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv \
          ~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv
 
-    mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
+    if [ "~{vis}" == "true" ]; then
+        mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
+    fi
 
     mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa ~{sample_name}.ctat-LR-fusion.igv.genome.fa
     mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa.fai ~{sample_name}.ctat-LR-fusion.igv.genome.fa.fai
@@ -187,7 +193,7 @@ task CTAT_LR_FUSION_TASK {
       File prelim_fusion_report="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv.gz"
       File prelim_fusion_report_abridged="~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv.gz"
 
-      File fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
+      File? fusion_report_html="~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html"
       File igv_tar="~{sample_name}.ctat-LR-fusion.igv.tar.gz"
     }
     
