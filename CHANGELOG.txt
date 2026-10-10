@@ -1,4 +1,9 @@
-# CTAT-LR-Fusion devel (unreleased)
+# CTAT-LR-Fusion v1.6.0 October 10, 2026
+- adds --max_promiscuity (default 10) and --min_pct_dom_promiscuity (default 20) to tune the promiscuity filter, which were previously fixed at the FusionFilter defaults; both are also WDL inputs
+- the IGV input files are now always prepared and bundled as ctat-LR-fusion.igv.tar.gz; --vis now only controls generating the igv-reports html
+- WDL: adds a vis input (default false); igv_tar is always output and fusion_report_html is output only when vis is set
+- adds --cb_tag and --umi_tag (default CB and UB) for single-cell inputs carrying the cell barcode or umi in other tags; both are also WDL inputs
+- WDL: the final and preliminary fusion reports are gzipped, and the preliminary full and abridged reports are now workflow outputs
 - adds util/sc/fusion_cell_umi_summary.py: for single-cell inputs, reports per-fusion read, umi, and cell counts, per (fusion, cell) counts, and per-read umi group assignments. UMIs are deduplicated within each cell and fusion, grouping UMIs within a Levenshtein edit distance (default 2) to absorb long-read umi errors and shifts.
 - bugfix - util/sc/cell_to_fusion_mappings.Rscript now deduplicates by cell and umi instead of retaining only one read per cell
 

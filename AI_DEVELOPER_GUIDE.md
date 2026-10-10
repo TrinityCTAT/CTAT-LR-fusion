@@ -4,7 +4,7 @@
 
 **CTAT-LR-Fusion** is a fusion transcript detection pipeline for long-read RNA-seq data (PacBio Iso-seq and Oxford Nanopore) that's part of the Trinity Cancer Transcriptome Analysis Toolkit (CTAT). It can optionally incorporate Illumina short reads for additional validation.
 
-**Current Version:** v1.2.1 (as of Sept 2025)
+**Current Version:** v1.6.0 (as of Oct 2026)
 
 **Primary Language:** Perl (main driver), with Python utilities
 
@@ -368,7 +368,41 @@ cd testing
 
 ---
 
+## Cutting a Release
+
+Development happens on `devel`; releases are merged to `main` and tagged `ctat-LR-fusion-vX.Y.Z`.
+
+1. **Update the changelog** - in [CHANGELOG.txt](CHANGELOG.txt), rename the `devel (unreleased)` section (or add a new one) to `# CTAT-LR-Fusion vX.Y.Z <Month Day, Year>` and make sure it lists every user-facing change since the last release (`git log ctat-LR-fusion-v<last>..devel`).
+2. **Bump the version** in `$VERSION` near the top of [ctat-LR-fusion](ctat-LR-fusion) and in [Docker/VERSION.txt](Docker/VERSION.txt). Commit as `prep for vX.Y.Z release` and push `devel`.
+3. **Pin the Dockerfile** - in [Docker/Dockerfile](Docker/Dockerfile) set `ctat_LR_fusion_version` and `CTAT_LR_FUSION_CO` (the prep commit's hash; the image is built from a recursive GitHub clone at that commit). Build and push with `Docker/build_docker.versioned_only.sh` and `Docker/push_docker.versioned_only.sh`. Commit as `docker built for vX.Y.Z` and push.
+4. **Merge to main and tag:**
+   ```bash
+   git checkout main && git merge devel && git push origin main
+   git tag ctat-LR-fusion-vX.Y.Z && git push origin ctat-LR-fusion-vX.Y.Z
+   git checkout devel
+   ```
+5. **Build the FULL tarball** from a recursive clone, so the submodules are included, with all `.git` directories and files (submodules use `.git` files) removed:
+   ```bash
+   git clone --recursive --branch ctat-LR-fusion-vX.Y.Z https://github.com/TrinityCTAT/CTAT-LR-fusion.git CTAT-LR-fusion-vX.Y.Z
+   find CTAT-LR-fusion-vX.Y.Z -name .git -prune -exec rm -rf {} +
+   tar -zcf CTAT-LR-fusion-vX.Y.Z.FULL.tar.gz CTAT-LR-fusion-vX.Y.Z
+   ```
+6. **Create the GitHub release** titled `CTAT-LR-Fusion vX.Y.Z` on the tag, with the changelog entries as notes followed by `** Download the FULL version ** as it contains all required submodules`, and attach the FULL tarball:
+   ```bash
+   gh release create ctat-LR-fusion-vX.Y.Z CTAT-LR-fusion-vX.Y.Z.FULL.tar.gz \
+       --title "CTAT-LR-Fusion vX.Y.Z" --notes-file release_notes.md
+   ```
+
+---
+
 ## Version History Highlights
+
+See [CHANGELOG.txt](CHANGELOG.txt) for the full history.
+
+**v1.6.0 (Oct 2026):**
+- `--max_promiscuity` and `--min_pct_dom_promiscuity` to tune the promiscuity filter
+- IGV files always bundled as `ctat-LR-fusion.igv.tar.gz`; `--vis` only controls the html
+- `--cb_tag`/`--umi_tag` for single-cell inputs; single-cell CB^UMI^readname read naming (v1.5.1)
 
 **v1.2.1 (Sept 2025):**
 - Phase 1 candidate limit enforcement
