@@ -154,6 +154,17 @@ task CTAT_LR_FUSION_TASK {
                 ~{no_ctat_mm2_flag} \
                 ~{"--FI_extra_params " + FI_extra_params }
 
+    # ctat-LR-fusion stops early without writing reports when phase 1 finds no fusion candidates,
+    # so write header-only reports and an empty IGV archive to report no fusions found.
+    if [ ! -e ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.tsv ]; then
+        echo "-no fusion predictions report generated, writing empty reports"
+        header_prefix=$(printf '#FusionName\tnum_LR\tLeftGene\tLeftLocalBreakpoint\tLeftBreakpoint\tRightGene\tRightLocalBreakpoint\tRightBreakpoint\tSpliceType')
+        for report in fusion_predictions fusion_predictions.preliminary; do
+            printf '%s\tLR_accessions\tLR_FFPM\tannots\n' "${header_prefix}" > ctat_LR_fusion_outdir/ctat-LR-fusion.${report}.tsv
+            printf '%s\tLR_FFPM\tannots\n' "${header_prefix}" > ctat_LR_fusion_outdir/ctat-LR-fusion.${report}.abridged.tsv
+        done
+    fi
+
 
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.tsv
     mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv ~{sample_name}.ctat-LR-fusion.fusion_predictions.preliminary.abridged.tsv
@@ -166,21 +177,26 @@ task CTAT_LR_FUSION_TASK {
          ~{sample_name}.ctat-LR-fusion.fusion_predictions.tsv \
          ~{sample_name}.ctat-LR-fusion.fusion_predictions.abridged.tsv
 
-    if [ "~{vis}" == "true" ]; then
+    if [ -e ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ]; then
         mv ctat_LR_fusion_outdir/ctat-LR-fusion.fusion_inspector_web.html ~{sample_name}.ctat-LR-fusion.fusion_inspector_web.html
     fi
 
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa ~{sample_name}.ctat-LR-fusion.igv.genome.fa
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa.fai ~{sample_name}.ctat-LR-fusion.igv.genome.fa.fai
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.gtf ~{sample_name}.ctat-LR-fusion.igv.annot.gtf
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.bed ~{sample_name}.ctat-LR-fusion.igv.annot.bed
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam.bai ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam.bai
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.pfam.bed ~{sample_name}.ctat-LR-fusion.igv.pfam.bed
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.seqsimilar.bed ~{sample_name}.ctat-LR-fusion.igv.seqsimilar.bed
-    mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.breakoint.roi.bed ~{sample_name}.ctat-LR-fusion.igv.LR.breakoint.roi.bed
+    if [ -d ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep ]; then
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa ~{sample_name}.ctat-LR-fusion.igv.genome.fa
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.genome.fa.fai ~{sample_name}.ctat-LR-fusion.igv.genome.fa.fai
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.gtf ~{sample_name}.ctat-LR-fusion.igv.annot.gtf
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.annot.bed ~{sample_name}.ctat-LR-fusion.igv.annot.bed
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.sorted.bam.bai ~{sample_name}.ctat-LR-fusion.igv.LR.sorted.bam.bai
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.pfam.bed ~{sample_name}.ctat-LR-fusion.igv.pfam.bed
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.seqsimilar.bed ~{sample_name}.ctat-LR-fusion.igv.seqsimilar.bed
+        mv ctat_LR_fusion_outdir/fusion_intermediates_dir/IGV_prep/igv.LR.breakoint.roi.bed ~{sample_name}.ctat-LR-fusion.igv.LR.breakoint.roi.bed
 
-    tar -zcvhf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv.*
+        tar -zcvhf ~{sample_name}.ctat-LR-fusion.igv.tar.gz ~{sample_name}.ctat-LR-fusion.igv.*
+    else
+        # no fusion candidates, so no IGV files
+        tar -zcvf ~{sample_name}.ctat-LR-fusion.igv.tar.gz -T /dev/null
+    fi
     
 
     

@@ -1,3 +1,7 @@
+# CTAT-LR-Fusion devel (unreleased)
+- bugfix - WDL no longer fails when phase 1 finds no fusion candidates (ctat-LR-fusion stops early without writing reports); it now outputs header-only fusion reports and an empty IGV archive
+
+
 # CTAT-LR-Fusion v1.6.0 October 10, 2026
 - adds --max_promiscuity (default 10) and --min_pct_dom_promiscuity (default 20) to tune the promiscuity filter, which were previously fixed at the FusionFilter defaults; both are also WDL inputs
 - the IGV input files are now always prepared and bundled as ctat-LR-fusion.igv.tar.gz; --vis now only controls generating the igv-reports html
