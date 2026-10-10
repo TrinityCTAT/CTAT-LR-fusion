@@ -1,0 +1,19 @@
+# editor backups
+*~
+
+# python bytecode
+__pycache__/
+
+# Set-IntervalTree build output
+plugins/Set-IntervalTree-0.01/
+PerlLib/Set/
+PerlLib/auto/
+
+# test outputs
+FusionInspector.log
+testing/ctat_LR_fusion_outdir.*/
+testing/*.LR_read_count.txt
+testing/run.log
+testing/transcripts.fq.fasta
+testing/transcripts.sc.fq.gz
+testing/transcripts.sc.mm2.bam
