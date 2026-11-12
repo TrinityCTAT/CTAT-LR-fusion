@@ -1,4 +1,4 @@
-# CTAT-LR-Fusion devel (unreleased)
+# CTAT-LR-Fusion v1.6.1 November 12, 2026
 - bugfix - WDL no longer fails when phase 1 finds no fusion candidates (ctat-LR-fusion stops early without writing reports); it now outputs header-only fusion reports and an empty IGV archive
 - bugfix - --max_IGV_LR_per_fusion was documented but not parsed, so the IGV/--vis per-fusion read cap was always 100; it is now honored
 - the reads shown in the IGV files and --vis html for fusions above --max_IGV_LR_per_fusion are now a reproducible subsample; adds --IGV_LR_seed (default 42) (PR #22, thanks @yinshiyi)
