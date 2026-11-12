@@ -60,6 +60,7 @@ my $IGV_REPORTS = 0;
 my $MAX_EXON_DELTA = 50;
 
 my $max_IGV_LR_per_fusion = 100;
+my $IGV_LR_seed = 42;
 
 my $SNAP_dist = 3;
 
@@ -193,6 +194,7 @@ my $usage =<<__EOUSAGE__;
 #
 #  --max_IGV_LR_per_fusion <int>   : select a max number of LR per fusion for the IGV files and --vis html. (default: $max_IGV_LR_per_fusion)
 #                                          (more reads means longer browser load times)
+#  --IGV_LR_seed <int>             : random seed for choosing which LR to show when a fusion has more than --max_IGV_LR_per_fusion (default: $IGV_LR_seed)
 #
 #  --examine_coding_effect         : explore impact of fusions on coding sequences (guesses only based on the fusion breakpoint and
 #                                                                                   ref annotations, prioritizing in-frame over out-of-frame 
@@ -290,6 +292,8 @@ my $num_total_reads;
               'shrink_intron_max_length=i' => \$shrink_intron_max_length,
               
               'vis' => \$IGV_REPORTS,
+              'max_IGV_LR_per_fusion=i' => \$max_IGV_LR_per_fusion,
+              'IGV_LR_seed=i' => \$IGV_LR_seed,
 
               'no_abundance_filter' => \$NO_ABUNDANCE_FILTER,
 
@@ -1095,7 +1099,7 @@ sub include_IGV_REPORTS {
     
     
     ## get the long read alignments
-    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam $LR_FI_mm2_bam --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
+    $cmd = "$UTILDIR/LR_sam_fusion_read_extractor.pl --FI_LR_sam $LR_FI_mm2_bam --LR_fusion_report $fusions_file --max_alignments_per_fusion $max_IGV_LR_per_fusion --seed $IGV_LR_seed > $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam";
     $pipeliner->add_commands(new Command($cmd, "IGV_select_max_LR_per_fusion.ok"));
     
     $cmd = "samtools view -Sb $intermediates_dir/LR-FI.mm2.max_per_fusion-$max_IGV_LR_per_fusion.sam -o $igv_prep_dir/igv.LR.bam && samtools sort $igv_prep_dir/igv.LR.bam -o $igv_prep_dir/igv.LR.sorted.bam && samtools index $igv_prep_dir/igv.LR.sorted.bam";

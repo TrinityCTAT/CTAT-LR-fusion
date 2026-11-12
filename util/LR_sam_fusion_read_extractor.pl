@@ -20,6 +20,9 @@ my $usage = <<__EOUSAGE__;
 #
 #  --max_alignments_per_fusion <int>  : limit to max of <int> LR read alignments per fusion.
 #
+#  --seed <int>                     : random seed for choosing which reads to keep when a fusion has more
+#                                     than --max_alignments_per_fusion reads (default: 42)
+#
 #############################################################################################
 
 
@@ -32,12 +35,14 @@ __EOUSAGE__
 my $FI_LR_sam;
 my $LR_fusion_report;
 my $max_alignments_per_fusion = 0;
+my $seed = 42;
 
 my $help_flag;
 &GetOptions ( 'help|h' => \$help_flag,
               'FI_LR_sam=s' => \$FI_LR_sam,
               'LR_fusion_report=s' => \$LR_fusion_report,
               'max_alignments_per_fusion=i' => \$max_alignments_per_fusion,
+              'seed=i' => \$seed,
     );
 
 
@@ -64,7 +69,10 @@ main: {
         my $LR_accs = $row->{'LR_accessions'};
         my @LR_fusion_reads = split(/,/, $LR_accs);
         if ($max_alignments_per_fusion && scalar(@LR_fusion_reads) > $max_alignments_per_fusion) {
-            @LR_fusion_reads = shuffle(@LR_fusion_reads);
+            # reseed per fusion and sort first, so a fusion's subset depends only on its own reads and the seed,
+            # not on the read order in the report or on which other fusions come before it.
+            srand($seed);
+            @LR_fusion_reads = shuffle(sort @LR_fusion_reads);
             @LR_fusion_reads = @LR_fusion_reads[0..($max_alignments_per_fusion-1)];
         }
         foreach my $LR_fusion_read (@LR_fusion_reads) {
