@@ -29,7 +29,7 @@ def main():
         # 10x tag descriptions at:
         # https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/bam#:~:text=Barcoded%20BAM%20Tags,-The%20cellranger%20pipeline%20outputs%20an
 
-        CB = "NA"
+        cell_barcode = "NA"
         if read.has_tag("CB"):
             cell_barcode = read.get_tag("CB", "Z")[0]
             cell_barcode = re.sub("-1$", "", cell_barcode)
